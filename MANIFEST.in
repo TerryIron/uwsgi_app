@@ -1,0 +1,6 @@
+include CHANGELOG.md
+include LICENSE
+include test_uwsgi_app.py
+
+recursive-include documentation *
+prune documentation/_build
