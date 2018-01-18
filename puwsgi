@@ -139,7 +139,6 @@ class Uwsgi(VShell):
                 _uwsgi_options = '--processes {process} --threads {thread}'.format(thread=_thread_number,
                                                                                    process=_process_number)
             _cmd += ' ' + _uwsgi_options
-            print _cmd
             subprocess.call(_cmd, shell=True)
 
 if __name__ == '__main__':
