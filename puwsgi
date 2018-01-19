@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# coding=utf-8
-#
+# -*- coding: utf-8 -*-
 #
 # Copyright (c) 2015-2018  Terry Xi
 # All Rights Reserved.
@@ -130,7 +129,8 @@ class Uwsgi(VShell):
                 _cmd += ' --wsgi-file ' + _target_file
             elif _target_app:
                 mod = __import__(_target_app, globals(), locals(), [_target_app.split('.')[-1]])
-                _cmd += ' --wsgi-file ' + mod.__file__
+                _file_path = '.'.join(mod.__file__.split('.')[0:-1]) + '.py'
+                _cmd += ' --wsgi-file ' + _file_path
             if _python_framework == 'tornado':
                 _uwsgi_options = '--tornado {thread} --greenlet ' \
                                  '--processes {process}'.format(thread=_thread_number,
