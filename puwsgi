@@ -17,8 +17,9 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+import base64
+import json
 import subprocess
-
 import argparse
 
 __author__ = 'terry'
@@ -80,12 +81,24 @@ class Uwsgi(VShell):
         command = self.command('run', help_text=u'启动uwsgi应用')
         command.install_argument(['--framework'], 'python_framework', default='tornado',
                                  help_text=u'python架构名称')
+        command.install_argument(['--config'], 'config_file', default='',
+                                 help_text=u'配置文件')
+        command.install_argument(['--server-db'], 'server_db', default='',
+                                 help_text=u'本地数据库地址')
+        command.install_argument(['--server-scheme'], 'server_scheme', default='http',
+                                 help_text=u'本地服务协议')
         command.install_argument(['--server-host'], 'server_host', default='127.0.0.1',
+                                 help_text=u'本地服务地址')
+        command.install_argument(['--server-port'], 'server_port', default='9999',
+                                 help_text=u'本地服务端口')
+        command.install_argument(['--transfer-db'], 'transfer_db', default='',
+                                 help_text=u'服务数据库地址')
+        command.install_argument(['--transfer-scheme'], 'transfer_scheme', default='',
+                                 help_text=u'服务协议')
+        command.install_argument(['--transfer-host'], 'transfer_host', default='',
                                  help_text=u'服务地址')
-        command.install_argument(['--server-port'], 'server_port', default='8080',
+        command.install_argument(['--transfer-port'], 'transfer_port', default='',
                                  help_text=u'服务端口')
-        command.install_argument(['--sock-type'], 'sock_type', default='http',
-                                 help_text=u'服务类型')
         command.install_argument(['--crt-file'], 'crt_file', default='',
                                  help_text=u'SSL认证文件')
         command.install_argument(['--key-file'], 'key_file', default='',
@@ -102,21 +115,46 @@ class Uwsgi(VShell):
 
     def run(self):
         if self.has_command('run'):
+            _data = {}
+
+            def get_argument_store(store_name):
+                _d = self.get_argument(store_name)
+                if _d:
+                    _data[store_name] = _d
+                return _d
+
             _python_framework = self.get_argument('python_framework')
-            _server_host = self.get_argument('server_host')
-            _server_port = self.get_argument('server_port')
-            _sock_type = self.get_argument('sock_type')
+            _config_file = get_argument_store('config_file')
+            _server_host = get_argument_store('server_host')
+            _server_port = get_argument_store('server_port')
+            _server_scheme = get_argument_store('server_scheme')
+            _server_db = get_argument_store('server_db')
+            _transfer_host = get_argument_store('transfer_host')
+            _transfer_port = get_argument_store('transfer_port')
+            _transfer_scheme = get_argument_store('transfer_scheme')
+            _transfer_db = get_argument_store('transfer_db')
             _crt_file = self.get_argument('crt_file')
             _key_file = self.get_argument('key_file')
             _process_number = self.get_argument('process_number')
             _thread_number = self.get_argument('thread_number')
             _target_file = self.get_argument('target_file')
             _target_app = self.get_argument('target_app')
+            if _config_file:
+                try:
+                    f = json.loads(open(_config_file).read())
+                    _s_host = f.get('server_host', None)
+                    if _s_host:
+                        _server_host = _s_host
+                    _s_port = f.get('server_port', None)
+                    if _s_port:
+                        _server_port = _s_port
+                except Exception as e:
+                    raise e
             _cmd = 'uwsgi --master'
-            if _sock_type == 'http':
+            if _server_scheme == 'http':
                 _uwsgi_options = '--http {host}:{port}'.format(host=_server_host,
                                                                port=_server_port)
-            elif _sock_type == 'https':
+            elif _server_scheme == 'https':
                 _uwsgi_options = '--https {host}:{port},{crt},{key}'.format(host=_server_host,
                                                                             port=_server_port,
                                                                             crt=_crt_file,
@@ -139,6 +177,7 @@ class Uwsgi(VShell):
                 _uwsgi_options = '--processes {process} --threads {thread}'.format(thread=_thread_number,
                                                                                    process=_process_number)
             _cmd += ' ' + _uwsgi_options
+            _cmd += ' --pyargv ' + base64.b64encode(json.dumps(_data))
             subprocess.call(_cmd, shell=True)
 
 if __name__ == '__main__':
