@@ -19,8 +19,6 @@
 
 import argparse
 
-__author__ = 'terry'
-
 
 class VShell(object):
     """

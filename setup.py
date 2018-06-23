@@ -44,4 +44,10 @@ setup(name='uwsgi_app',
           'testing': tests_require,
       },
       install_requires=requires,
+      entry_points="""\
+      [paste.app_factory]
+      main = uwsgi_app:main
+      """,
+      # [console_scripts]
+      # initialize_db = uwsgi.scripts.initializedb:main
       )

@@ -139,18 +139,22 @@ class Uwsgi(VShell):
             _thread_number = self.get_argument('thread_number')
             _target_file = self.get_argument('target_file')
             _target_app = self.get_argument('target_app')
-            if _config_file:
-                try:
-                    f = json.loads(open(_config_file).read())
-                    _s_host = f.get('server_host', None)
-                    if _s_host:
-                        _server_host = _s_host
-                    _s_port = f.get('server_port', None)
-                    if _s_port:
-                        _server_port = _s_port
-                except Exception as e:
-                    raise e
             _cmd = 'uwsgi --master'
+            if _config_file:
+                if _config_file.endswith('.json'):
+                    try:
+                        f = json.loads(open(_config_file).read())
+                        _s_host = f.get('server_host', None)
+                        if _s_host:
+                            _server_host = _s_host
+                        _s_port = f.get('server_port', None)
+                        if _s_port:
+                            _server_port = _s_port
+                    except Exception as e:
+                        raise e
+                elif _config_file.endswith('.ini'): 
+                    _cmd += ' --ini-paste ' + _config_file
+
             if _server_scheme == 'http':
                 _uwsgi_options = '--http {host}:{port}'.format(host=_server_host,
                                                                port=_server_port)
@@ -176,6 +180,7 @@ class Uwsgi(VShell):
             else:
                 _uwsgi_options = '--processes {process} --threads {thread}'.format(thread=_thread_number,
                                                                                    process=_process_number)
+            _cmd += ' --thunder-lock'
             _cmd += ' ' + _uwsgi_options
             _cmd += ' --pyargv ' + base64.b64encode(json.dumps(_data))
             subprocess.call(_cmd, shell=True)

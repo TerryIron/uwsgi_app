@@ -1,7 +1,9 @@
 *.pyc
+env
 dist
 build
 MANIFEST
 documentation/_build
 .tox
-eleven.egg-info
+*.egg-info
+config.json
