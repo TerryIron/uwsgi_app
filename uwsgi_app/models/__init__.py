@@ -23,6 +23,7 @@ from sqlalchemy import engine_from_config, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import configure_mappers
 import zope.sqlalchemy
+import transaction
 import happybase
 
 # import or define all models here to ensure they are attached to the
@@ -270,7 +271,7 @@ def includeme(config):
 
     config.add_request_method(
         # r.tm is the transaction manager used by pyramid_tm
-        lambda r: get_tm_session(session_factory, r.tm),
+        lambda : get_tm_session(session_factory, transaction._manager),
         'dbsession',
         reify=True
     )

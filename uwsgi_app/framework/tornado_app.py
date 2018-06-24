@@ -21,9 +21,9 @@ import tornado.ioloop
 import tornado.wsgi
 import tornado.web
 
-from uwsgi_app import modprobe
+from uwsgi_app import modprobe, confprobe
 from uwsgi_app.settings import settings as config
-from uwsgi_app.routes import get_routes
+import uwsgi_app.models as init_models
 
 _host = config.get('server_host', 'localhost')
 _host = str(_host)
@@ -32,7 +32,14 @@ _port = int(_port) if _port else 8888
 _routes = config.get('filter_routes', [])
 _routes = _routes if _routes else []
 
-ROUTE = {}
+_ROUTE = {}
+
+
+def initialize(self, **kwargs):
+    for k, v in kwargs.items():
+        setattr(self, k, v()) if callable(v) else setattr(self, k, v)
+
+tornado.web.RequestHandler.initialize = initialize
 
 
 class Application(tornado.web.Application):
@@ -47,25 +54,37 @@ class Application(tornado.web.Application):
         settings.update(**dict(session=_session_settings))
         super(Application, self).__init__(*handlers, **settings)
 
+_APP = Application
+
+
+def make_app(route=None):
+    _target_route = route if route else _ROUTE
+    return _APP(_target_route)
+
 
 def init(global_config, **settings):
-    pass
+    file_name = global_config.get('__file__')
+    config = confprobe(file_name)
+    init_models.includeme(config)
+
+    class _Application(Application):
+        def __init__(self, *handlers, **settings):
+            _handlers = [[(_u, _h, config.property) for _u, _h in _handler ] for _handler in handlers]
+            super(_Application, self).__init__(*_handlers, **settings)
+
+    global _APP
+    _APP = _Application
 
 
-def make_route():
-    global ROUTE
-    _target_routes = get_routes()
+def make_route(**routes):
+    global _ROUTE
+    _target_routes = routes
     if not _target_routes:
         _target_routes = [(r'{0}'.format(i), modprobe(j)) for i, j in _routes]
     else:
         _target_routes = [(r'{0}'.format(i), j) for i, j in _target_routes.items()]
-    ROUTE = _target_routes
-    return ROUTE
-
-
-def make_app(route=None):
-    _target_route = route if route else ROUTE
-    return Application(_target_route)
+    _ROUTE = _target_routes
+    return _ROUTE
 
 
 def application():

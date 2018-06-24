@@ -22,7 +22,8 @@ __version__ = (0, 1, 0)
 import os.path
 import ConfigParser
 
-import uwsgi_app.models as _models_loader
+from uwsgi_app.routes import get_routes
+
 
 GLOBAL_CONFIG = {}
 
@@ -30,12 +31,13 @@ GLOBAL_CONFIG = {}
 class Config(object):
     def __init__(self):
         self.registry = {}
+        self.property = {}
 
     def add_request_method(self, func, name, reify=True):
         if reify:
-            setattr(self, name, func)
+            self.property[name] = func
         else:
-            setattr(self, name, func())
+            self.property[name] = func()
 
 
 Configurator = Config()
@@ -45,8 +47,10 @@ def modprobe(mod):
     return __import__(mod, globals(), locals(), [mod.split('.')[-1]])
 
 
-def load_config(c, sect='app:main'):
+def confprobe(file_name, sect='app:main'):
     global Configurator 
+    c = ConfigParser.ConfigParser()
+    c.read(file_name)
     _settings = dict([(o, c.get(sect, o, None)) for o in c.options(sect)])
     setattr(Configurator , 'settings', _settings)
     return Configurator
@@ -64,7 +68,7 @@ def init_loader(c, global_config, settings,
     _init = _c.get(opt_init, default_init)
     getattr(_module, _init)(global_config, **settings)
     _route = _c.get(opt_route, default_route)
-    getattr(_module, _route)()
+    getattr(_module, _route)(**get_routes())
 
     _callable = _c.get(opt_callable, default_callable)
     _application = getattr(_module, _callable)
@@ -83,14 +87,10 @@ def main(global_config, **settings):
 
     GLOBAL_CONFIG.update(global_config)                                                                                                                                           
     file_name = global_config.get('__file__')
-    c = ConfigParser.ConfigParser()
-    c.read(file_name)
-    config = load_config(c)
+    config = confprobe(file_name)
 
     application = init_loader(config, global_config, settings)
 
-    _models_loader.includeme(config)
-    
     return application() if  callable(application) else application
 
 
