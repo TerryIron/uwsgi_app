@@ -21,7 +21,9 @@ import tornado.ioloop
 import tornado.wsgi
 import tornado.web
 
-from mxproxy.settings import settings as config
+from uwsgi_app import modprobe
+from uwsgi_app.settings import settings as config
+from uwsgi_app.routes import get_routes
 
 _host = config.get('server_host', 'localhost')
 _host = str(_host)
@@ -30,20 +32,44 @@ _port = int(_port) if _port else 8888
 _routes = config.get('filter_routes', [])
 _routes = _routes if _routes else []
 
+ROUTE = {}
+
+
+class Application(tornado.web.Application):
+    def __init__(self, *handlers, **settings):
+        _session_settings = {
+            'driver': 'memory',
+            'driver_settings': dict(host=self),
+            'force_persistence': True,
+            'sid_name': 'torndsessionID',
+            'session_lifetime': 1800
+        }
+        settings.update(**dict(session=_session_settings))
+        super(Application, self).__init__(*handlers, **settings)
+
+
+def init(global_config, **settings):
+    pass
+
 
 def make_route():
-    return [(r'{0}'.format(i), j) for i, j in _routes]
+    global ROUTE
+    _target_routes = get_routes()
+    if not _target_routes:
+        _target_routes = [(r'{0}'.format(i), modprobe(j)) for i, j in _routes]
+    else:
+        _target_routes = [(r'{0}'.format(i), j) for i, j in _target_routes.items()]
+    ROUTE = _target_routes
+    return ROUTE
 
 
-def make_app():
-    return tornado.web.Application(make_route())
+def make_app(route=None):
+    _target_route = route if route else ROUTE
+    return Application(_target_route)
 
 
-def make_wsgi_app():
+def application():
     return tornado.wsgi.WSGIAdapter(make_app())
-
-
-application = make_wsgi_app()
 
 
 if __name__ == "__main__":

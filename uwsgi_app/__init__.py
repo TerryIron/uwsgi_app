@@ -41,6 +41,10 @@ class Config(object):
 Configurator = Config()
 
 
+def modprobe(mod):
+    return __import__(mod, globals(), locals(), [mod.split('.')[-1]])
+
+
 def load_config(c, sect='app:main'):
     global Configurator 
     _settings = dict([(o, c.get(sect, o, None)) for o in c.options(sect)])
@@ -48,17 +52,24 @@ def load_config(c, sect='app:main'):
     return Configurator
 
 
-def load_framework(c, default_framework='tornado', 
-                   opt_frame='application.framework', 
-                   default_callable='application', 
-                   opt_callable='application.callable'):
+def init_loader(c, global_config, settings,
+                default_framework='tornado', opt_frame='application.framework',
+                default_callable='application', opt_callable='application.callable',
+                default_route='make_route', opt_route='application.route',
+                default_init='init', opt_init='application.init'):
     _c = c.settings
     _framework = _c.get(opt_frame, default_framework)
+    _module = modprobe(__name__ + '.' + _framework)
+
+    _init = _c.get(opt_init, default_init)
+    getattr(_module, _init)(global_config, **settings)
+    _route = _c.get(opt_route, default_route)
+    getattr(_module, _route)()
+
     _callable = _c.get(opt_callable, default_callable)
-    _target_app = __name__ + '.' + _framework
-    _module =  __import__(_target_app, globals(), locals(), [_target_app.split('.')[-1]])
     _application = getattr(_module, _callable)
     setattr(c, 'application', _application)
+
     return _application
 
 
@@ -75,10 +86,11 @@ def main(global_config, **settings):
     c = ConfigParser.ConfigParser()
     c.read(file_name)
     config = load_config(c)
-    application = load_framework(config)
+
+    application = init_loader(config, global_config, settings)
 
     _models_loader.includeme(config)
     
-    return application
+    return application() if  callable(application) else application
 
 

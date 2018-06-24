@@ -1,0 +1,8 @@
+#!/bin/bash
+
+mkdir -p /opt/log
+redis-server > /opt/log/redis.log &
+redis-cli << EOF
+config set stop-writes-on-bgsave-error no
+EOF
+tail -f /opt/log/redis.log
