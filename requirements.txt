@@ -16,6 +16,7 @@ celery==4.0
 celery_once==1.2.0
 pycrypto
 beautifulsoup4
+gevent
 tornado>=4.5.3
 tornado-redis
 tornado-celery

@@ -20,6 +20,7 @@
 import tornado.ioloop
 import tornado.wsgi
 import tornado.web
+from gevent.monkey import patch_all; patch_all()
 
 from uwsgi_app import modprobe, confprobe
 from uwsgi_app.settings import settings as config
