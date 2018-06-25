@@ -69,7 +69,6 @@ def main(global_config, **settings):
     confinit(**global_config)
     config = Config()
     setattr(config, 'settings', get_config(confprobe()))
-    print config
     application = init_loader(config, global_config, settings)
 
     return application() if  callable(application) else application
