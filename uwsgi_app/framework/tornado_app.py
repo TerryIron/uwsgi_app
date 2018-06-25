@@ -17,10 +17,13 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+import tornado.gen
 import tornado.ioloop
 import tornado.wsgi
 import tornado.web
+from tornado.ioloop import IOLoop                                                                                                                                                 
 from gevent.monkey import patch_all; patch_all()
+from functools import wraps
 
 from uwsgi_app import modprobe, confprobe
 from uwsgi_app.settings import settings as config
@@ -34,6 +37,38 @@ _routes = config.get('filter_routes', [])
 _routes = _routes if _routes else []
 
 _ROUTE = {}
+
+
+def call_later(delay=0):
+    def wrap_loop(func):
+
+        @wraps(func)
+        def wrap_func(*args, **kwargs):
+            return IOLoop.instance().call_later(delay, func, *args, **kwargs)
+        return wrap_func
+    return wrap_loop
+
+
+def call_event(delta=60):
+    _delta = delta * 1000
+    _args = {'args': []}
+
+    def wrap_loop(func):
+        @wraps(func)
+        @tornado.gen.coroutine
+        def wrap_func(*args, **kwargs):
+            ret = None
+            if not _args['args']:
+                _args['args'] = args
+            try:
+                ret = func(*_args['args'], **kwargs)
+            except Exception as e:
+                pass
+
+            IOLoop.instance().add_timeout(datetime.timedelta(milliseconds=_delta), wrap_func)
+            return ret
+        return wrap_func
+    return wrap_loop
 
 
 def initialize(self, **kwargs):
