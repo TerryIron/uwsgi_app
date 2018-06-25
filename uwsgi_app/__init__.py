@@ -20,12 +20,9 @@
 __version__ = (0, 1, 0)
 
 import os.path
-import ConfigParser
 
+from uwsgi_app.config import get_config, confinit, confprobe, modprobe
 from uwsgi_app.routes import get_routes
-
-
-GLOBAL_CONFIG = {}
 
 
 class Config(object):
@@ -39,26 +36,6 @@ class Config(object):
         else:
             self.property[name] = func()
 
-Configurator = Config()
-
-
-def get_config(file_name=None):
-    file_name = GLOBAL_CONFIG.get('__file__') if not file_name else file_name
-    c = ConfigParser.ConfigParser()
-    c.read(file_name)
-    return c
-
-
-def modprobe(mod):
-    return __import__(mod, globals(), locals(), [mod.split('.')[-1]])
-
-
-def confprobe(c, sect='app:main'):
-    _settings = dict([(o, c.get(sect, o, None)) for o in c.options(sect)])
-    global Configurator 
-    setattr(Configurator , 'settings', _settings)
-    return Configurator
-
 
 def init_loader(c, global_config, settings,
                 default_framework='tornado', opt_frame='application.framework',
@@ -70,7 +47,7 @@ def init_loader(c, global_config, settings,
     _module = modprobe(__name__ + '.' + _framework)
 
     _init = _c.get(opt_init, default_init)
-    getattr(_module, _init)(global_config, **settings)
+    getattr(_module, _init)(c, **settings)
     _route = _c.get(opt_route, default_route)
     getattr(_module, _route)(**get_routes())
 
@@ -89,9 +66,10 @@ def main(global_config, **settings):
     :return: 
     """
 
-    GLOBAL_CONFIG.update(global_config)                                                                                                                                           
-    config = confprobe(get_config())
-
+    confinit(**global_config)
+    config = Config()
+    setattr(config, 'settings', get_config(confprobe()))
+    print config
     application = init_loader(config, global_config, settings)
 
     return application() if  callable(application) else application

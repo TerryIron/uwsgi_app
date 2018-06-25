@@ -25,7 +25,7 @@ from tornado.ioloop import IOLoop
 from gevent.monkey import patch_all; patch_all()
 from functools import wraps
 
-from uwsgi_app import modprobe, confprobe, get_config
+from uwsgi_app.config import modprobe
 from uwsgi_app.settings import settings as config
 import uwsgi_app.models as init_models
 
@@ -98,8 +98,7 @@ def make_app(route=None):
     return _APP(_target_route)
 
 
-def init(global_config, **settings):
-    config = confprobe(get_config())
+def init(config, **settings):
     init_models.includeme(config)
 
     class _Application(Application):
