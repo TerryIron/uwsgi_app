@@ -39,19 +39,23 @@ class Config(object):
         else:
             self.property[name] = func()
 
-
 Configurator = Config()
+
+
+def get_config(file_name=None):
+    file_name = GLOBAL_CONFIG.get('__file__') if not file_name else file_name
+    c = ConfigParser.ConfigParser()
+    c.read(file_name)
+    return c
 
 
 def modprobe(mod):
     return __import__(mod, globals(), locals(), [mod.split('.')[-1]])
 
 
-def confprobe(file_name, sect='app:main'):
-    global Configurator 
-    c = ConfigParser.ConfigParser()
-    c.read(file_name)
+def confprobe(c, sect='app:main'):
     _settings = dict([(o, c.get(sect, o, None)) for o in c.options(sect)])
+    global Configurator 
     setattr(Configurator , 'settings', _settings)
     return Configurator
 
@@ -86,8 +90,7 @@ def main(global_config, **settings):
     """
 
     GLOBAL_CONFIG.update(global_config)                                                                                                                                           
-    file_name = global_config.get('__file__')
-    config = confprobe(file_name)
+    config = confprobe(get_config())
 
     application = init_loader(config, global_config, settings)
 
