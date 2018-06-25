@@ -25,7 +25,7 @@ GLOBAL_CONFIG = {}
 
 def confinit(**config):
     global GLOBAL_CONFIG
-    GLOBAL_CONFIG.update(**config)                                                                                                                                           
+    GLOBAL_CONFIG.update(**config)
 
 
 def confprobe(file_name=None):

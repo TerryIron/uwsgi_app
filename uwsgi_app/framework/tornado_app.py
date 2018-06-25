@@ -21,7 +21,7 @@ import tornado.gen
 import tornado.ioloop
 import tornado.wsgi
 import tornado.web
-from tornado.ioloop import IOLoop                                                                                                                                                 
+from tornado.ioloop import IOLoop
 from gevent.monkey import patch_all; patch_all()
 from functools import wraps
 
