@@ -41,3 +41,25 @@ def modprobe(mod):
 
 def get_config(c, sect='app:main'):
     return dict([(o, c.get(sect, o, None)) for o in c.options(sect)])
+
+
+def singleton(cls, *args, **kw):
+    instances = {}
+    def _singleton():
+        if cls not in instances:
+            instances[cls] = cls(*args, **kw)
+        return instances[cls]
+    return _singleton
+
+
+def classprobe(entry_method, **kwargs):
+    def _singleton(cls, *args, **kw):
+        instances = {}
+        if hasattr(cls, entry_method) and callable(getattr(cls, entry_method)):
+            getattr(cls, entry_method)(**kwargs)
+        def __singleton():
+            if cls not in instances:
+                instances[cls] = cls(*args, **kw)
+            return instances[cls]
+        return __singleton
+    return _singleton

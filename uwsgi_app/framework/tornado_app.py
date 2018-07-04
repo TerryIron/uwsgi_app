@@ -17,6 +17,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+import time
 import tornado.gen
 import tornado.ioloop
 import tornado.wsgi
@@ -37,6 +38,11 @@ _routes = config.get('filter_routes', [])
 _routes = _routes if _routes else []
 
 _ROUTE = {}
+
+
+@tornado.gen.coroutine
+def async_sleep(seconds):
+    yield gen.Task(IOLoop.instance().add_timeout, time.time() + seconds)
 
 
 def call_later(delay=0):

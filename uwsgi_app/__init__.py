@@ -22,7 +22,6 @@ __version__ = (0, 1, 0)
 import os.path
 
 from uwsgi_app.config import get_config, confinit, confprobe, modprobe
-from uwsgi_app.routes import get_routes
 
 
 class Config(object):
@@ -49,6 +48,7 @@ def init_loader(c, global_config, settings,
     _init = _c.get(opt_init, default_init)
     getattr(_module, _init)(c, **settings)
     _route = _c.get(opt_route, default_route)
+    from uwsgi_app.routes import get_routes
     getattr(_module, _route)(**get_routes())
 
     _callable = _c.get(opt_callable, default_callable)
