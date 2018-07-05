@@ -24,6 +24,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import configure_mappers
 import zope.sqlalchemy
 import transaction
+import urlparse
+import pymongo
+import pymssql
 import happybase
 
 # import or define all models here to ensure they are attached to the
@@ -35,7 +38,9 @@ from .meta import Base as Base
 configure_mappers()
 
 
-__all__ = ['Engine', 'EngineFactory', 'Table', 'get_engine', 'get_sqlalchemy_engine', 'get_hbase_engine',
+__all__ = ['Engine', 'EngineFactory', 'Table', 'get_engine', 
+           'get_sqlalchemy_engine', 'get_hbase_engine',
+           'get_mongo_engine', 'get_sqlserver_engine',
            'create_tables', 'get_session_factory', 'get_tm_session', 'get_mod_tables']
 
 
@@ -44,7 +49,7 @@ def _get_pointed_value(settings, prefix):
     获取配置特性
     
     :param settings: 配置表
-    :param prefix: 特征字段 
+    :param prefix: 特征字段
     :return: 
     """
 
@@ -58,8 +63,8 @@ def get_mod_tables(mod):
     """
     获取模块内表对象
     
-    :param mod: 模块对象 
-    :return: 
+    :param mod: 模块对象
+    :return:
     """
 
     _n = []
@@ -78,7 +83,7 @@ def _parse_create_tables(engine, mod):
     
     :param engine: 数据引擎代理对象
     :param mod: 模块路径
-    :return: 
+    :return:
     """
 
     mod = __import__(mod, globals(), locals(), [mod.split('.')[-1]])
@@ -115,7 +120,7 @@ class Engine(object):
     def engine_factory(self):
         """
         数据引擎工厂函数
-        :return: 
+        :return:
         """
 
         return self._engine
@@ -124,7 +129,7 @@ class Engine(object):
     def engine(self):
         """
         数据引擎实例
-        :return: 
+        :return:
         """
 
         _instance = self._engine if not callable(self._engine) else self._engine()
@@ -160,7 +165,7 @@ def get_engine(settings, prefix='sql.'):
     生成数据引擎代理实例
     :param settings: 配置表
     :param prefix: 特征
-    :return: 
+    :return:
     """
 
     value = _get_pointed_value(settings, prefix)
@@ -175,7 +180,7 @@ def get_hbase_engine(url):
     """
     生成Hbase数据引擎代理实例
     :param url: 数据库地址
-    :return: 
+    :return:
     """
 
     import urlparse
@@ -187,10 +192,56 @@ def get_sqlalchemy_engine(url):
     """
     生成Sqlalchemy数据引擎代理实例
     :param url: 数据库地址
-    :return: 
+    :return:
     """
 
     return Engine(sessionmaker(bind=create_engine(url)), 'sqlalchemy')
+
+
+def get_sqlserver_engine(url):
+    """
+    获取sqlserver数据引擎
+    :param url: 数据库地址
+    :return:
+    """
+
+    _d = urlparse.urlparse(url)
+    _username, _password, _database = None, None, None
+    for i in _d.netloc.split(';'):
+        if i.startswith('user='):
+            _username = i.split('user=')[1]
+            continue
+        if i.startswith('password='):
+            _password = i.split('password=')[1]
+            continue
+        if i.startswith('databaseName='):
+            _database = i.split('databaseName=')[1]
+            continue
+    _host = _d.hostname
+    _port = _d.netloc.split(':')
+    if len(_port) > 1:
+        _port = _port[1]
+        _port = int(_port.split(';')[0])
+    else:
+        _port = 1433
+    logger.info('host:{0}, port:{1}, database:{2}'.format(_host, _port, _database))
+    logger.info('user:{0}, password:{1}'.format(_username, _password))
+    conn = pymssql.connect(host=_host, port=_port,
+                           user=_username, password=_password,
+                           database=_database, charset='utf8')
+    return Engine(lambda: conn.cursor(as_dict=True), 'sqlserver')
+
+
+def get_mongo_engine(url):
+    """
+    获取mongodb数据引擎
+    :param url: 数据库地址
+    :return:
+    """
+
+    _p = urlparse.urlparse(url)
+    _db, _table = _p.path.lstrip('/').split('.')
+    return Engine(lambda: pymongo.MongoClient(url)[_db][_table], 'mongo')
 
 
 def create_tables(engine, settings, prefix='model.'):
@@ -199,7 +250,7 @@ def create_tables(engine, settings, prefix='model.'):
     :param engine: 数据引擎代理
     :param settings: 配置表
     :param prefix: 特征
-    :return: 
+    :return:
     """
 
     value = _get_pointed_value(settings, prefix)
@@ -213,7 +264,7 @@ def get_session_factory(engine):
     获取数据引擎工厂
     
     :param engine: 数据引擎代理
-    :return: 
+    :return:
     """
 
     if engine.name == 'hbase':

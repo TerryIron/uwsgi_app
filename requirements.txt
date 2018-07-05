@@ -22,6 +22,10 @@ tornado-redis
 tornado-celery
 torndsession
 happybase
+mongoengine                                                                                                                                                                       
+pymssql
+PyHive
+impyla
 #-e git+https://github.com/niklasb/webkit-server.git#egg=webkit-server
 #webkit-server
 #dryscrape
