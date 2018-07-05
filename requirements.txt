@@ -22,7 +22,7 @@ tornado-redis
 tornado-celery
 torndsession
 happybase
-mongoengine                                                                                                                                                                       
+mongoengine
 pymssql
 PyHive
 impyla

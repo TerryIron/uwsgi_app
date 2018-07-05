@@ -1,0 +1,20 @@
+[plugin:main]
+start = test1 test2 
+
+[pipeline:test1]
+align = p1 p:test2 p2 
+
+[pipeline:test2]
+align = p3 p4
+
+[app:p1]
+load = p1.zip
+
+[app:p2]
+load = p2.zip
+
+[app:p3]
+load = p3.zip
+
+[app:p4]
+load = p4.zip
