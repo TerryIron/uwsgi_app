@@ -30,9 +30,14 @@ from uwsgi_app.framework.tornado_app import call_later, call_event, async_sleep
 from uwsgi_app.plugins.loader import PluginLoader
 
 
-@classprobe('start_plugins')
+@classprobe('start')
 class PluginLoaderV1(tornado.web.RequestHandler, PluginLoader):
     executor = ThreadPoolExecutor(1000)
+
+    @classmethod
+    @call_later(2)
+    def start(cls):
+        cls.start_plugins()
 
     @classmethod
     def load_plugins(cls):
@@ -57,7 +62,8 @@ class PluginLoaderV1(tornado.web.RequestHandler, PluginLoader):
 
         global_plugin = {}
 
-        def init_plugin_path(plugin_path=os.path.join(os.path.dirname(__file__), '../plugins')):
+        def init_plugin_path():
+            plugin_path = cls.get_plugin_path()
             for s in p.sections():
                 if not s.startswith('app:'):
                     continue
@@ -69,7 +75,6 @@ class PluginLoaderV1(tornado.web.RequestHandler, PluginLoader):
                 _plugin_home = os.path.join(plugin_path, _home)
 
                 app_config = os.path.join(_plugin_home, 'app.json')
-                print app_config
 
                 if not os.path.exists(_plugin_home):
                     _cmd = 'unzip {} -d {}'
@@ -88,12 +93,14 @@ class PluginLoaderV1(tornado.web.RequestHandler, PluginLoader):
                 app_name = app_json.get('name', '')
                 if not app_name:
                     raise Exception('plugin {} app_name not found'.format(_home))
-                global_plugin[s] = app_name
+                global_plugin[s.split('app:')[1]] = app_name
 
                 app_lang = app_json.get('lang', 'python')
                 app_version = app_json.get('version', '0.01')
-                app_actions = [(k, __import__(v, globals(), locals(), v.split('.')[-1])) 
-                               for k, v in app_json.get('actions', {})]
+                _globals = globals()
+                _globals['sys'] = cls.get_plugin_import_path(app_name)
+                app_actions = [(k, getattr(__import__('.'.join(v.split('.')[:-1]), _globals, locals()), v.split('.')[-1])) 
+                               for k, v in app_json.get('actions', {}).items()]
                 app_public_actions = app_json.get('public_actions', [])
                 app_init = app_json.get('init', None)
                 if not app_init:
@@ -111,7 +118,7 @@ class PluginLoaderV1(tornado.web.RequestHandler, PluginLoader):
                 _pipe = pipe if pipe else []
                 for _n in p.get('pipeline:{}'.format(n), 'align').split(' '):
                     if _n.startswith('p:'):
-                        get_pipeline(_n, _pipe)
+                        get_pipeline(_n.split('p:')[1], _pipe)
                     else:
                         _pipe.append(_n)
                 return _pipe

@@ -7,7 +7,7 @@ function build_plugin() {
     local old_pwd=$(pwd)
 
     cd $plugin_path
-    [ -d "$plugin_name/app.json" ] && {
+    [ -f "$plugin_name/app.json" ] && {
         zip -r $plugin_name".zip" $plugin_name
         echo "plugin $plugin_name is built"
     } || {

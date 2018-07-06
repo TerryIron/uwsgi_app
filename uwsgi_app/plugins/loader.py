@@ -19,6 +19,10 @@
 
 
 class PluginLoader(object):
+
+    class Result(object):
+        pass 
+
     import os.path as op
     from gevent.pool import Pool
     pool = Pool(1000)
@@ -33,7 +37,8 @@ class PluginLoader(object):
     plugin_pipeline = {} # 插件流程配置, 如{'pipelineA': [PLUGINS]}
     plugins = [] # 插件配置入口, [pipelineA, pipelineB]
 
-    results = {}
+    globals = {}
+    results = Result()
 
     @classmethod
     def set_pipeline(cls, name, plugin_names):
@@ -78,24 +83,39 @@ class PluginLoader(object):
         return plugin_path
 
     @classmethod
-    def _plugin_environ(cls, name, entry):
+    def get_plugin_path(cls):
         import os.path as op
         _plugin_path = op.abspath(op.dirname(__file__))
-        _env, _lib_path = {}, cls.__plug_libpath__.get(name, op.join(_plugin_path, name))
+        return _plugin_path
+
+    @classmethod
+    def get_plugin_import_path(cls, name):
+        import os.path as op
+        _plugin_path = cls.get_plugin_path()
+        _lib_path = cls.__plug_libpath__.get(name, op.join(_plugin_path, name))
         import sys
         sys.path = ['.', _plugin_path]
         sys.path.insert(0, _lib_path)
+        return sys
+
+    @classmethod
+    def _plugin_environ(cls, name, entry):
+        _plugin_path = cls.get_plugin_path()
+        _lib_path = cls.get_plugin_import_path(name)
+        _env = {}
         # basic plugin environ
         _env.update(dict([('plugin_' + k, v) for k, v in cls.__plug_globals__.items()]))
         # entry point of plugin function 
         _env[name] = entry
         # system environ of plugin function 
-        _env['sys'] = sys
+        _env['sys'] = _lib_path
         _env['__builtins__'] = globals()['__builtins__']
         _env['__file__'] = globals()['__file__']
         _env['__package__'] = None
         _env['__name__'] = name
         _env['__plugin__'] = cls.__plug_path__[name]
+        _env['__result__'] = cls.results
+        print 999, dir(cls.results)
         globals().clear()
         globals().update(_env)
         return _env
@@ -106,18 +126,23 @@ class PluginLoader(object):
         def call_plugin_func():
             env = cls._plugin_environ(name, cls.plugin_registry[name][func_name])
             # call plugin function 
-            exec('cls.results[{0}] = {1}(**cls.results[{0}])'.format(pipe_name, name), env)
+            exec('__result__.{0} = {1}(**__result__.{0})'.format(pipe_name, name), env)
+            exec('_result = {}', env)
+            exec('__result__.{0} = _result'.format(pipe_name), env)
+            _env = {} 
+            _env.update(env)
+            _env.update(cls.globals)
+            exec('PluginLoader.results = __result__', _env)
         cls.pool.apply_async(call_plugin_func())
 
     @classmethod
     def run_plugins(cls):
-        _globals = {}
-        _globals.update(globals())
+        cls.globals.update(globals())
         for p_entry in cls.plugins:                                                                                                                                               
             if p_entry not in cls.plugin_pipeline:
                 continue
-            if p_entry not in cls.plugins_result:
-                cls.plugins_result[p_entry] = {}
+            if not hasattr(cls.results, p_entry):
+                setattr(cls.results, p_entry, {})
 
             for p in cls.plugin_pipeline[p_entry]:
                 if p not in cls.plugin_init:
@@ -133,7 +158,7 @@ class PluginLoader(object):
                 else:
                     pass
         globals().clear()
-        globals().update(_globals)
+        globals().update(cls.globals)
 
     @classmethod
     def _load_plugins(cls, plugin_path):
