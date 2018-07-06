@@ -115,7 +115,6 @@ class PluginLoader(object):
         _env['__name__'] = name
         _env['__plugin__'] = cls.__plug_path__[name]
         _env['__result__'] = cls.results
-        print 999, dir(cls.results)
         globals().clear()
         globals().update(_env)
         return _env
