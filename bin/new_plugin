@@ -1,0 +1,66 @@
+#!/bin/bash
+
+
+function new_plugin() {
+    local plugin_name="$1"
+    local plugin_path="$2"
+    local old_pwd=$(pwd)
+
+    cd $plugin_path
+    mkdir -p $plugin_name
+    cd $plugin_name
+
+cat >> requirements.txt << EOF
+EOF
+cat >> app.json << EOF
+{
+    "version": "0.01",
+    "type": "basic",
+    "name": "$plugin_name",
+    "language": "python2",
+    "imports": "requirements.txt",
+    "actions": {
+    },
+    "public_actions": [
+    ],
+    "init": ""
+}
+EOF
+    cd $old_pwd
+    echo "plugin $plugin_name is created"
+}
+
+function help() {
+    echo "usage: new_plugin [-h] PLUGIN_NAME PLUGIN_PATH ..."
+}
+
+function main() {
+    local plugin_name="$1"
+    local plugin_path="$2"
+    local old_pwd=$(pwd)
+
+    cd $plugin_path
+    [ -d "$plugin_name" ] && {
+        echo "plugin $plugin_name is exist"
+        cd $old_pwd
+        exit 1
+    }
+    cd $old_pwd
+    new_plugin "$plugin_name" "$plugin_path"
+}
+
+target_path=$2
+[ "$target_path" != "" ] || {
+    target_path=$(pwd)
+}
+[ "$1" == "-h" ] && {
+    help 
+    exit
+} || {
+    [ "$1" == "" ] && {
+        help 
+        exit
+    }
+}
+
+main "$1" "$target_path"
