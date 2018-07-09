@@ -38,6 +38,7 @@ class PluginLoader(object):
     plugin_pipeline = {} # 插件流程配置, 如{'pipelineA': [PLUGINS]}
     plugins = [] # 插件配置入口, [pipelineA, pipelineB]
 
+    plugin_config = {}
     globals = {}
     results = Result()
 
@@ -135,7 +136,7 @@ class PluginLoader(object):
         def call_plugin_func():
             env = cls._plugin_environ(name, cls.plugin_registry[name][func_name])
             # call plugin function 
-            exec('__result__.{0} = {1}(**__result__.{0})'.format(pipe_name, name), env)
+            exec('__result__.{0} = {1}({2}, **__result__.{0})'.format(pipe_name, name, cls.plugin_config), env)
             exec('_result = {}', env)
             exec('__result__.{0} = _result'.format(pipe_name), env)
             _env = {} 
@@ -268,11 +269,16 @@ class PluginLoaderV1(PluginLoader):
 
         def init_plugin_config():
 
-            def get_pipeline(n, pipe=None):
+            def config_pipeline(n, pipe=None):
                 _pipe = pipe if pipe else []
-                for _n in p.get('pipeline:{}'.format(n), 'align').split(' '):
+                _pipe_name = 'pipeline:{}'.format(n)
+                for _o in p.options(_pipe_name):
+                    if _o == 'align':
+                        continue
+                    cls.plugin_config[_o] = c.get(_pipe_name, _o)
+                for _n in p.get(_pipe_name, 'align').split(' '):
                     if _n.startswith('p:'):
-                        get_pipeline(_n.split('p:')[1], _pipe)
+                        config_pipeline(_n.split('p:')[1], _pipe)
                     else:
                         _pipe.append(_n)
                 return _pipe
@@ -286,7 +292,7 @@ class PluginLoaderV1(PluginLoader):
                     continue
                 if not p.has_option('pipeline:{}'.format(name), 'align'):
                     continue
-                _pipelines = [global_plugin[pn] for pn in get_pipeline(name) 
+                _pipelines = [global_plugin[pn] for pn in config_pipeline(name) 
                               if pn in global_plugin and global_plugin[pn]]
                 cls.set_pipeline(name, _pipelines)
 
