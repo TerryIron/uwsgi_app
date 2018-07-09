@@ -23,7 +23,8 @@ cat >> app.json << EOF
     },
     "public_actions": [
     ],
-    "init": ""
+    "init": "",
+    "call": ""
 }
 EOF
     cd $old_pwd

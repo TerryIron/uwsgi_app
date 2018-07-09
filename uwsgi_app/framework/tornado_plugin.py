@@ -17,21 +17,17 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-import json
-import os.path
-import commands
 import tornado.web
 from tornado.concurrent import run_on_executor
 from concurrent.futures import ThreadPoolExecutor
-from ConfigParser import ConfigParser
 
 from uwsgi_app.config import get_config, confinit, confprobe, modprobe, classprobe, GLOBAL_CONFIG
 from uwsgi_app.framework.tornado_app import call_later, call_event, async_sleep
-from uwsgi_app.plugins.loader import PluginLoader
+from uwsgi_app.plugins.loader import PluginLoaderV1
 
 
 @classprobe('start')
-class PluginLoaderV1(tornado.web.RequestHandler, PluginLoader):
+class PluginLoaderV1(tornado.web.RequestHandler, PluginLoaderV1):
     executor = ThreadPoolExecutor(1000)
 
     @classmethod
@@ -42,98 +38,4 @@ class PluginLoaderV1(tornado.web.RequestHandler, PluginLoader):
     @classmethod
     def load_plugins(cls):
         c = confprobe()
-
-        def get_plugin_config():
-            if not c.has_section('app:main'):
-                return
-            if not c.has_option('app:main', 'application.load_plugins'):
-                return
-            if not bool(c.get('app:main', 'application.load_plugins')):
-                return
-            if not c.has_section('plugins'):
-                return
-            if not c.has_option('plugins', 'config'):
-                return
-            return c.get('plugins', 'config')
-        
-        config = get_plugin_config()
-        p = ConfigParser()
-        p.read(config)
-
-        global_plugin = {}
-
-        def init_plugin_path():
-            plugin_path = cls.get_plugin_path()
-            for s in p.sections():
-                if not s.startswith('app:'):
-                    continue
-                if not p.has_option(s, 'load'):
-                    continue
-                _path = p.get(s, 'load')
-                _plugin_path = os.path.join(plugin_path, _path)
-                _home = p.get(s, 'load').split('.zip')[0]
-                _plugin_home = os.path.join(plugin_path, _home)
-
-                app_config = os.path.join(_plugin_home, 'app.json')
-
-                if not os.path.exists(_plugin_home):
-                    _cmd = 'unzip {} -d {}'
-                    commands.getoutput(_cmd.format(_plugin_path, plugin_path))
-
-                    app_json = json.load(open(app_config))
-                    app_requirements = app_json.get('imports', 'requirements.txt')
-
-                    _cmd = 'cd {}; virtualenv env; source env/bin/activate; pip install -r {}'
-                    commands.getoutput(_cmd.format(_plugin_home, app_requirements))
-                else:
-                    app_json = json.load(open(app_config))
-
-                app_env = os.path.join(_plugin_home, 'env/lib/python2.7')
-
-                app_name = app_json.get('name', '')
-                if not app_name:
-                    raise Exception('plugin {} app_name not found'.format(_home))
-                global_plugin[s.split('app:')[1]] = app_name
-
-                app_lang = app_json.get('lang', 'python')
-                app_version = app_json.get('version', '0.01')
-                _globals = globals()
-                _globals['sys'] = cls.get_plugin_import_path(app_name)
-                app_actions = [(k, getattr(__import__('.'.join(v.split('.')[:-1]), _globals, locals()), v.split('.')[-1])) 
-                               for k, v in app_json.get('actions', {}).items()]
-                app_public_actions = app_json.get('public_actions', [])
-                app_init = app_json.get('init', None)
-                if not app_init:
-                    raise Exception('plugin {} can not init'.format(_home))
-
-                cls.set_plugin(app_name, app_version, app_actions, 
-                               app_public_actions, app_init,
-                               app_lang, app_env, _plugin_home)
-
-        init_plugin_path()
-
-        def init_plugin_config():
-
-            def get_pipeline(n, pipe=None):
-                _pipe = pipe if pipe else []
-                for _n in p.get('pipeline:{}'.format(n), 'align').split(' '):
-                    if _n.startswith('p:'):
-                        get_pipeline(_n.split('p:')[1], _pipe)
-                    else:
-                        _pipe.append(_n)
-                return _pipe
-
-            if not p.has_section('plugin:main'):
-                return
-            if not p.has_option('plugin:main', 'start'):
-                return
-            for name in p.get('plugin:main', 'start').split(' '):
-                if not p.has_section('pipeline:{}'.format(name)):
-                    continue
-                if not p.has_option('pipeline:{}'.format(name), 'align'):
-                    continue
-                _pipelines = [global_plugin[pn] for pn in get_pipeline(name) 
-                              if pn in global_plugin and global_plugin[pn]]
-                cls.set_pipeline(name, _pipelines)
-
-        init_plugin_config()
+        cls.load_plugins_from_config(c)
