@@ -23,6 +23,7 @@ class PluginLoader(object):
     class Result(object):
         pass 
 
+    import sys
     import os.path as op
     from gevent.pool import Pool
     pool = Pool(1000)
@@ -40,6 +41,8 @@ class PluginLoader(object):
 
     plugin_config = {}
     globals = {}
+    paths = []
+    paths.extend(sys.path)
     results = Result()
 
     @classmethod
@@ -171,6 +174,7 @@ class PluginLoader(object):
                     pass
         globals().clear()
         globals().update(cls.globals)
+        sys.path = cls.paths
 
     @classmethod
     def _load_plugins(cls, plugin_path):
