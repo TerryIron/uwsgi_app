@@ -174,6 +174,7 @@ class PluginLoader(object):
                     pass
         globals().clear()
         globals().update(cls.globals)
+        import sys
         sys.path = cls.paths
 
     @classmethod
