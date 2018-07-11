@@ -86,7 +86,7 @@ def _parse_create_tables(engine, mod):
     :return:
     """
 
-    mod = __import__(mod, globals(), locals())
+    mod = __import__(mod, globals(), locals(), mod.split('.')[-1])
     if engine.name == 'hbase':
         mod_instances = get_mod_tables(mod)
         _tables = engine.engine.tables()

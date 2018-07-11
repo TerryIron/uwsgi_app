@@ -36,7 +36,7 @@ def confprobe(file_name=None):
 
 
 def modprobe(mod):
-    return __import__(mod, globals(), locals(), [mod.split('.')[-1]])
+    return __import__(mod, globals(), locals(), mod.split('.')[-1])
 
 
 def get_config(c, sect='app:main'):

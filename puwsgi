@@ -170,7 +170,7 @@ class Uwsgi(VShell):
             if _target_file:
                 _cmd += ' --wsgi-file ' + _target_file
             elif _target_app:
-                mod = __import__(_target_app, globals(), locals())
+                mod = __import__(_target_app, globals(), locals(), _target_app.split('.')[-1])
                 _file_path = '.'.join(mod.__file__.split('.')[0:-1]) + '.py'
                 _cmd += ' --wsgi-file ' + _file_path
             if _python_framework == 'tornado':
