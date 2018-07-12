@@ -23,6 +23,9 @@ class PluginLoader(object):
     class Result(object):
         pass
 
+    class Config(object):
+        pass
+
     import sys
     import os.path as op
     from gevent.pool import Pool
@@ -39,7 +42,7 @@ class PluginLoader(object):
     plugin_pipeline = {}  # 插件流程配置, 如{'pipelineA': [PLUGINS]}
     plugins = []  # 插件配置入口, [pipelineA, pipelineB]
 
-    plugin_config = {}
+    plugin_config = Config()
     globals = {}
     paths = []
     paths.extend(sys.path)
@@ -51,12 +54,15 @@ class PluginLoader(object):
         return cls.__plug_globals__[_name] if _name in cls.__plug_globals__ else None
 
     @classmethod
-    def set_pipeline(cls, name, plugin_names):
-        if name not in cls.plugins:
-            cls.plugins.append(name)
+    def set_pipeline(cls, name, plugin_names, idx=None):
+        _new_name = name if not idx else name + str(idx)
+        if _new_name not in cls.plugins:
+            cls.plugins.append(_new_name)
         else:
-            raise Exception('Pipeline {} is already exist'.format(name))
-        cls.plugin_pipeline[name] = [p for p in plugin_names]
+            raise Exception('Pipeline {} is already exist'.format(_new_name))
+        cls.plugin_pipeline[_new_name] = [p for p in plugin_names]
+        setattr(cls.plugin_config, _new_name, dict())
+        getattr(cls.plugin_config, _new_name).update(getattr(cls.plugin_config, name))
 
     @classmethod
     def set_plugin(
@@ -152,7 +158,7 @@ class PluginLoader(object):
             env = cls._plugin_environ(name, cls.plugin_registry[name][func_name])
             # call plugin function
             exec('__result__.{0} = {1}({2}, **__result__.{0})'.format(pipe_name,
-                                                                      name, cls.plugin_config), env)
+                                                                      name, getattr(cls.plugin_config, pipe_name)), env)
             exec('_result = {}', env)
             exec('__result__.{0} = _result'.format(pipe_name), env)
             _env = {}
@@ -292,19 +298,50 @@ class PluginLoaderV1(PluginLoader):
 
         def init_plugin_config():
 
-            def config_pipeline(n, pipe=None):
+            def config_boardcast(n, pipe_name, pipe=None):
                 _pipe = pipe if pipe else []
+                _boardcast_name = 'boardcast:{}'.format(n)
+                _new_pipe = []
+                for _o in p.options(_boardcast_name):
+                    if _o == 'align':
+                        continue
+                    getattr(cls.plugin_config, pipe_name)[_o] = c.get(_pipe_name, _o)
+                for _n in p.get(_boardcast_name, 'align').split(' '):
+                    if _n.startswith('p:'):
+                        raise Exception('Inline Pipeline not support, check Boardcast {}'.format(_boardcast_name))
+                    if _n.startswith('b:'):
+                        raise Exception('Inline Boardcast not support, check Boardcast {}'.format(_boardcast_name))
+                    _pipe = []
+                    _pipe.extend(pipe)
+                    _pipe.append(_n)
+                    _new_pipe.append(_pipe)
+                if not _new_pipe:
+                    _new_pipe.extend(pipe)
+                return _new_pipe
+
+            def config_pipeline(n, pipe):
                 _pipe_name = 'pipeline:{}'.format(n)
+                if not hasattr(cls.plugin_config, _pipe_name):
+                    setattr(cls.plugin_config, n, dict())
                 for _o in p.options(_pipe_name):
                     if _o == 'align':
                         continue
-                    cls.plugin_config[_o] = c.get(_pipe_name, _o)
+                    getattr(cls.plugin_config, n)[_o] = c.get(_pipe_name, _o)
                 for _n in p.get(_pipe_name, 'align').split(' '):
                     if _n.startswith('p:'):
-                        config_pipeline(_n.split('p:')[1], _pipe)
+                        config_pipeline(_n.split('p:')[1], pipe)
+                    elif _n.startswith('b:'):
+                        _p = []
+                        _p.extend(pipe)
+                        for i in pipe:
+                            pipe.pop()
+                        pipe.extend(config_boardcast(_n.split('b:')[1], _pipe_name, _p))
                     else:
-                        _pipe.append(_n)
-                return _pipe
+                        if len(pipe) > 0 and isinstance(pipe[0], list):
+                            for _i in range(len(pipe)):
+                                pipe[_i].append(_n)
+                        else:
+                            pipe.append(_n)
 
             if not p.has_section('plugin:main'):
                 return
@@ -315,8 +352,17 @@ class PluginLoaderV1(PluginLoader):
                     continue
                 if not p.has_option('pipeline:{}'.format(name), 'align'):
                     continue
-                _pipelines = [global_plugin[pn] for pn in config_pipeline(name)
-                              if pn in global_plugin and global_plugin[pn]]
-                cls.set_pipeline(name, _pipelines)
+                _pipelines = []
+                config_pipeline(name, _pipelines)
+
+                if len(_pipelines) > 0 and isinstance(_pipelines[0], list):
+                    for _i, _pipeline in enumerate(_pipelines):
+                        _pipeline = [global_plugin[pn] for pn in _pipeline
+                                      if pn in global_plugin and global_plugin[pn]]
+                        cls.set_pipeline(name, _pipeline, _i)
+                else:
+                    _pipelines = [global_plugin[pn] for pn in _pipelines
+                                  if pn in global_plugin and global_plugin[pn]]
+                    cls.set_pipeline(name, _pipelines)
 
         init_plugin_config()
