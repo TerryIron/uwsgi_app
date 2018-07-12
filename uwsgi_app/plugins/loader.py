@@ -21,23 +21,23 @@
 class PluginLoader(object):
 
     class Result(object):
-        pass 
+        pass
 
     import sys
     import os.path as op
     from gevent.pool import Pool
     pool = Pool(1000)
 
-    __plug_globals__ = {} # 插件imports模块环境, 如{'pluginA': PLUGINA}
-    __plug_libpath__ = {} # 插件私有库环境, 如{'pluginA': LIBPATH}
-    __plug_path__ = {} # 插件私有配置环境, 如{'pluginA': CONFPATH}
-    plugin_registry = {} # 插件action入口, 如{'pluginA': {NAME: FUNC}}
-    plugin_public_registry = {} # 插件public_action配置, 如{'pluginA': [NAME]}
-    plugin_init = {} # 插件init配置, 如{'pluginA': [NAME]}
-    plugin_call = {} # 插件call配置, 如{'pluginA': [NAME]}
-    plugin_lang = {} # 插件私有环境, 如{'pluginA': 'python'}
-    plugin_pipeline = {} # 插件流程配置, 如{'pipelineA': [PLUGINS]}
-    plugins = [] # 插件配置入口, [pipelineA, pipelineB]
+    __plug_globals__ = {}  # 插件imports模块环境, 如{'pluginA': PLUGINA}
+    __plug_libpath__ = {}  # 插件私有库环境, 如{'pluginA': LIBPATH}
+    __plug_path__ = {}  # 插件私有配置环境, 如{'pluginA': CONFPATH}
+    plugin_registry = {}  # 插件action入口, 如{'pluginA': {NAME: FUNC}}
+    plugin_public_registry = {}  # 插件public_action配置, 如{'pluginA': [NAME]}
+    plugin_init = {}  # 插件init配置, 如{'pluginA': [NAME]}
+    plugin_call = {}  # 插件call配置, 如{'pluginA': [NAME]}
+    plugin_lang = {}  # 插件私有环境, 如{'pluginA': 'python'}
+    plugin_pipeline = {}  # 插件流程配置, 如{'pipelineA': [PLUGINS]}
+    plugins = []  # 插件配置入口, [pipelineA, pipelineB]
 
     plugin_config = {}
     globals = {}
@@ -59,10 +59,21 @@ class PluginLoader(object):
         cls.plugin_pipeline[name] = [p for p in plugin_names]
 
     @classmethod
-    def set_plugin(cls, name, version, funcs, public_names, init_name, call_name, lang='python', libpath='.', path='.'):
+    def set_plugin(
+            cls,
+            name,
+            version,
+            funcs,
+            public_names,
+            init_name,
+            call_name,
+            lang='python',
+            libpath='.',
+            path='.'):
         cls.plugin_lang[name] = lang
         cls.plugin_registry[name] = dict([(n, f) for n, f in funcs if callable(f)])
-        cls.plugin_public_registry[name] = [n for n in public_names if n in cls.plugin_registry[name]]
+        cls.plugin_public_registry[name] = [
+            n for n in public_names if n in cls.plugin_registry[name]]
         cls.plugin_init[name] = init_name if init_name in cls.plugin_registry[name] else None
         if not cls.plugin_init[name]:
             raise Exception('Plugin {} will not initialize'.format(name))
@@ -119,9 +130,9 @@ class PluginLoader(object):
         _env = {}
         # basic plugin environ
         _env.update(dict([('plugin_' + k, v) for k, v in cls.__plug_globals__.items()]))
-        # entry point of plugin function 
+        # entry point of plugin function
         _env[name] = entry
-        # system environ of plugin function 
+        # system environ of plugin function
         _env['sys'] = _lib_path
         _env['__builtins__'] = globals()['__builtins__']
         _env['__file__'] = globals()['__file__']
@@ -136,13 +147,15 @@ class PluginLoader(object):
     @classmethod
     def run_python_plugin(cls, pipe_name, name):
         func_name = cls.plugin_call[name]
+
         def call_plugin_func():
             env = cls._plugin_environ(name, cls.plugin_registry[name][func_name])
-            # call plugin function 
-            exec('__result__.{0} = {1}({2}, **__result__.{0})'.format(pipe_name, name, cls.plugin_config), env)
+            # call plugin function
+            exec('__result__.{0} = {1}({2}, **__result__.{0})'.format(pipe_name,
+                                                                      name, cls.plugin_config), env)
             exec('_result = {}', env)
             exec('__result__.{0} = _result'.format(pipe_name), env)
-            _env = {} 
+            _env = {}
             _env.update(env)
             _env.update(cls.globals)
             exec('PluginLoader.results = __result__', _env)
@@ -151,7 +164,7 @@ class PluginLoader(object):
     @classmethod
     def run_plugins(cls):
         cls.globals.update(globals())
-        for p_entry in cls.plugins:                                                                                                                                               
+        for p_entry in cls.plugins:
             if p_entry not in cls.plugin_pipeline:
                 continue
             if not hasattr(cls.results, p_entry):
@@ -214,7 +227,7 @@ class PluginLoaderV1(PluginLoader):
             if not c.has_option('plugins', 'config'):
                 return
             return c.get('plugins', 'config')
-        
+
         config = get_plugin_config()
         p = ConfigParser()
         p.read(config)
@@ -258,15 +271,20 @@ class PluginLoaderV1(PluginLoader):
                 app_version = app_json.get('version', '0.01')
                 _globals = globals()
                 _globals['sys'] = cls.get_plugin_import_path(app_name)
-                app_actions = [(k, getattr(__import__('.'.join(v.split('.')[:-1]), _globals, locals()), v.split('.')[-1])) 
-                               for k, v in app_json.get('actions', {}).items()]
+                app_actions = [(k,
+                                getattr(__import__('.'.join(v.split('.')[:-1]),
+                                                   _globals,
+                                                   locals()),
+                                        v.split('.')[-1])) for k,
+                               v in app_json.get('actions',
+                                                 {}).items()]
                 app_public_actions = app_json.get('public_actions', [])
                 app_init = app_json.get('init', None)
                 app_call = app_json.get('call', None)
                 if not app_init:
                     raise Exception('plugin {} can not init'.format(_home))
 
-                cls.set_plugin(app_name, app_version, app_actions, 
+                cls.set_plugin(app_name, app_version, app_actions,
                                app_public_actions, app_init, app_call,
                                app_lang, app_env, _plugin_home)
 
@@ -297,7 +315,7 @@ class PluginLoaderV1(PluginLoader):
                     continue
                 if not p.has_option('pipeline:{}'.format(name), 'align'):
                     continue
-                _pipelines = [global_plugin[pn] for pn in config_pipeline(name) 
+                _pipelines = [global_plugin[pn] for pn in config_pipeline(name)
                               if pn in global_plugin and global_plugin[pn]]
                 cls.set_pipeline(name, _pipelines)
 

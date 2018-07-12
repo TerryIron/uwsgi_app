@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for i in $(find -type f | grep py$ | grep -v "env\|build");do
+    autopep8 --in-place --aggressive --aggressive $i
+done
+
+

@@ -38,7 +38,7 @@ from .meta import Base as Base
 configure_mappers()
 
 
-__all__ = ['Engine', 'EngineFactory', 'Table', 'get_engine', 
+__all__ = ['Engine', 'EngineFactory', 'Table', 'get_engine',
            'get_sqlalchemy_engine', 'get_hbase_engine',
            'get_mongo_engine', 'get_sqlserver_engine',
            'create_tables', 'get_session_factory', 'get_tm_session', 'get_mod_tables']
@@ -47,10 +47,10 @@ __all__ = ['Engine', 'EngineFactory', 'Table', 'get_engine',
 def _get_pointed_value(settings, prefix):
     """
     获取配置特性
-    
+
     :param settings: 配置表
     :param prefix: 特征字段
-    :return: 
+    :return:
     """
 
     for k, v in settings.items():
@@ -62,7 +62,7 @@ def _get_pointed_value(settings, prefix):
 def get_mod_tables(mod):
     """
     获取模块内表对象
-    
+
     :param mod: 模块对象
     :return:
     """
@@ -80,7 +80,7 @@ def get_mod_tables(mod):
 def _parse_create_tables(engine, mod):
     """
     创建表
-    
+
     :param engine: 数据引擎代理对象
     :param mod: 模块路径
     :return:
@@ -157,7 +157,8 @@ class Table(object):
     def __init__(self, inst):
         self.name = getattr(inst, '__tablename__')
         self.inst = inst
-        self.columns = [c for c in dir(inst) if not c.startswith('_') and c != 'id' and c != 'metadata']
+        self.columns = [c for c in dir(inst) if not c.startswith('_')
+                        and c != 'id' and c != 'metadata']
 
 
 def get_engine(settings, prefix='sql.'):
@@ -185,7 +186,13 @@ def get_hbase_engine(url):
 
     import urlparse
     _p = urlparse.urlparse(url)
-    return Engine(lambda: happybase.Connection(host=_p.hostname, port=int(_p.port), autoconnect=False), 'hbase')
+    return Engine(
+        lambda: happybase.Connection(
+            host=_p.hostname,
+            port=int(
+                _p.port),
+            autoconnect=False),
+        'hbase')
 
 
 def get_sqlalchemy_engine(url):
@@ -262,7 +269,7 @@ def create_tables(engine, settings, prefix='model.'):
 def get_session_factory(engine):
     """
     获取数据引擎工厂
-    
+
     :param engine: 数据引擎代理
     :return:
     """
@@ -322,7 +329,7 @@ def includeme(config):
 
     config.add_request_method(
         # r.tm is the transaction manager used by pyramid_tm
-        lambda : get_tm_session(session_factory, transaction._manager),
+        lambda: get_tm_session(session_factory, transaction._manager),
         'dbsession',
         reify=True
     )

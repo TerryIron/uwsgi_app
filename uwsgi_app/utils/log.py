@@ -47,6 +47,7 @@ def get_logger(name):
     logger = Logger(name)
     return logger
 
+
 # Color escape string
 COLOR_RED = '\033[1;31m'
 COLOR_GREEN = '\033[1;32m'

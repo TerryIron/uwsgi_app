@@ -45,6 +45,7 @@ def get_config(c, sect='app:main'):
 
 def singleton(cls, *args, **kw):
     instances = {}
+
     def _singleton():
         if cls not in instances:
             instances[cls] = cls(*args, **kw)
@@ -57,6 +58,7 @@ def classprobe(entry_method, **kwargs):
         instances = {}
         if hasattr(cls, entry_method) and callable(getattr(cls, entry_method)):
             getattr(cls, entry_method)(**kwargs)
+
         def __singleton():
             if cls not in instances:
                 instances[cls] = cls(*args, **kw)

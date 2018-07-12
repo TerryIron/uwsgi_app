@@ -23,7 +23,8 @@ import tornado.ioloop
 import tornado.wsgi
 import tornado.web
 from tornado.ioloop import IOLoop
-from gevent.monkey import patch_all; patch_all()
+from gevent.monkey import patch_all
+patch_all()
 from functools import wraps
 
 from uwsgi_app.config import modprobe
@@ -81,6 +82,7 @@ def initialize(self, **kwargs):
     for k, v in kwargs.items():
         setattr(self, k, v()) if callable(v) else setattr(self, k, v)
 
+
 tornado.web.RequestHandler.initialize = initialize
 
 
@@ -96,6 +98,7 @@ class Application(tornado.web.Application):
         settings.update(**dict(session=_session_settings))
         super(Application, self).__init__(*handlers, **settings)
 
+
 _APP = Application
 
 
@@ -109,7 +112,8 @@ def init(config, **settings):
 
     class _Application(Application):
         def __init__(self, *handlers, **settings):
-            _handlers = [[(_u, _h, config.property) for _u, _h in _handler ] for _handler in handlers]
+            _handlers = [[(_u, _h, config.property) for _u, _h in _handler]
+                         for _handler in handlers]
             super(_Application, self).__init__(*_handlers, **settings)
 
     global _APP

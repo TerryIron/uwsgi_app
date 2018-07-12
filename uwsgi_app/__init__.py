@@ -63,7 +63,7 @@ def main(global_config, **settings):
     程序主入口
     :param global_config: 全局配置表
     :param settings: 配置表
-    :return: 
+    :return:
     """
 
     confinit(**global_config)
@@ -71,6 +71,4 @@ def main(global_config, **settings):
     setattr(config, 'settings', get_config(confprobe()))
     application = init_loader(config, global_config, settings)
 
-    return application() if  callable(application) else application
-
-
+    return application() if callable(application) else application

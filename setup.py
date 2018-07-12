@@ -13,13 +13,13 @@ import uwsgi_app
 requires = [
     'SQLAlchemy',
     'six',
-    ]
+]
 
 tests_require = [
     'WebTest >= 1.3.1',  # py3 compat
     'pytest',  # includes virtualenv
     'pytest-cov',
-    ]
+]
 
 setup(name='uwsgi_app',
       version='.'.join([str(v) for v in uwsgi_app.__version__]),
