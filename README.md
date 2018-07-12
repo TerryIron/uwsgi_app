@@ -24,3 +24,19 @@ $VENV/bin/python setup.py develop
 ```
 ./run_ini.sh
 ```
+
+## Coding Started(如何提交代码)
+* 进入安装目录
+```
+cd <directory containing this file>
+```
+
+* 格式化代码
+```
+./reformat
+```
+
+* 提交代码
+```
+git pull origin master; git push origin master
+```
