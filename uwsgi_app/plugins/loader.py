@@ -19,10 +19,101 @@
 
 
 class PluginLoader(object):
+    @classmethod
+    def get_logger(cls, name):
+        import logging
+
+        __LOGGER__ = None
+
+        LOGGER_FORMAT = '[%(asctime)s][%(name)s][%(levelname)s][%(filename)s:%(lineno)d %(funcName)s] %(message)s'
+        LOGGER_LEVEL = 'DEBUG'
+
+        def handler_init(filename=None, level=LOGGER_LEVEL, fmt=LOGGER_FORMAT):
+            if filename:
+                handler = logging.FileHandler(filename)
+            else:
+                handler = logging.StreamHandler()
+
+            if not level:
+                level = LOGGER_LEVEL
+
+            if not fmt:
+                fmt = LOGGER_FORMAT
+            handler.setFormatter(logging.Formatter(fmt))
+
+            global __LOGGER__
+            __LOGGER__ = (handler, level)
+            return __LOGGER__
+
+        # Color escape string
+        COLOR_RED = '\033[1;31m'
+        COLOR_GREEN = '\033[1;32m'
+        COLOR_YELLOW = '\033[1;33m'
+        COLOR_BLUE = '\033[1;34m'
+        COLOR_PURPLE = '\033[1;35m'
+        COLOR_CYAN = '\033[1;36m'
+        COLOR_GRAY = '\033[1;37m'
+        COLOR_WHITE = '\033[1;38m'
+        COLOR_RESET = '\033[1;0m'
+
+        # Define log color
+        LOG_COLORS = {
+            'DEBUG': '%s',
+            'INFO': COLOR_GREEN + '%s' + COLOR_RESET,
+            'WARNING': COLOR_YELLOW + '%s' + COLOR_RESET,
+            'ERROR': COLOR_RED + '%s' + COLOR_RESET,
+            'CRITICAL': COLOR_RED + '%s' + COLOR_RESET,
+            'EXCEPTION': COLOR_RED + '%s' + COLOR_RESET,
+        }
+
+        class ColorFormatter(logging.Formatter):
+            def __init__(self, fmt=None, datefmt=None):
+                logging.Formatter.__init__(self, fmt, datefmt)
+
+            def format(self, record):
+                level_name = record.levelname
+                msg = logging.Formatter.format(self, record)
+                return LOG_COLORS.get(level_name, '%s') % msg
+
+        class Logger(logging.Logger):
+            def __init__(self, name, level=logging.NOTSET):
+                self.logger = None
+                logging.Logger.__init__(self, name, level=level)
+
+            def _log(self, level, msg, args, exc_info=None, extra=None):
+                if not self.logger:
+                    self._init()
+                super(Logger, self)._log(
+                    level, msg, args, exc_info=exc_info, extra=extra)
+
+            def _init(self, colorful=True):
+                if not self.logger:
+                    if not __LOGGER__:
+                        _handler = logging.StreamHandler()
+                        _level = LOGGER_LEVEL
+                    else:
+                        _handler, _level = __LOGGER__
+                    if colorful:
+                        _handler.setFormatter(ColorFormatter(LOGGER_FORMAT))
+                    else:
+                        _handler.setFormatter(logging.Formatter(LOGGER_FORMAT))
+                    self.addHandler(_handler)
+                    self.setLevel(_level)
+                    self.logger = True
+
+        def get_logger(name):
+            logger = Logger(name)
+            return logger
+
+        return get_logger(name)
+
     class Result(object):
         pass
 
     class Config(object):
+        pass
+
+    class Loader(object):
         pass
 
     import sys
@@ -42,10 +133,22 @@ class PluginLoader(object):
     plugins = []  # 插件配置入口, [pipelineA, pipelineB]
 
     plugin_config = Config()
+    plugin_loader = Loader()
+    results = Result()
+
     globals = {}
     paths = []
     paths.extend(sys.path)
-    results = Result()
+
+    @classmethod
+    def _plugin_realaction(cls, name):
+        _action = name.split('.')
+        if len(_action) > 1:
+            return _action[1]
+
+    @classmethod
+    def _plugin_realname(cls, name):
+        return name.split('.')[0]
 
     @classmethod
     def import_plugin(cls, name):
@@ -64,6 +167,11 @@ class PluginLoader(object):
         setattr(cls.plugin_config, _new_name, dict())
         getattr(cls.plugin_config, _new_name).update(
             getattr(cls.plugin_config, name))
+
+        setattr(cls.results, _new_name, dict())
+        d = cls.Loader()
+        setattr(d, 'config', getattr(cls.plugin_config, _new_name))
+        setattr(cls.plugin_loader, _new_name, d)
 
     @classmethod
     def set_plugin(cls,
@@ -158,16 +266,32 @@ class PluginLoader(object):
 
     @classmethod
     def run_python_plugin(cls, pipe_name, name):
-        func_name = cls.plugin_call[name]
+
+        _name = cls._plugin_realname(name)
+        _action = cls._plugin_realaction(name)
+        if not _action:
+            func_name = cls.plugin_call[name]
+        else:
+            if _action in cls.plugin_registry[_name]:
+                func_name = _action
+            else:
+                raise Exception('Plugin {} action {} not found'.format(
+                    pipe_name, _action))
 
         def call_plugin_func():
-            env = cls._plugin_environ(name,
-                                      cls.plugin_registry[name][func_name])
+            env = cls._plugin_environ(_name,
+                                      cls.plugin_registry[_name][func_name])
             # call plugin function
-            exec ('__result__.{0} = {1}({2}, **__result__.{0})'.format(
-                pipe_name, name, getattr(cls.plugin_config, pipe_name)), env)
-            exec ('_result = {}', env)
-            exec ('__result__.{0} = _result'.format(pipe_name), env)
+            d = getattr(cls.plugin_loader, pipe_name)
+            setattr(d, 'log', cls.get_logger('.'.join([pipe_name, _name])))
+            env['__loader__'] = d
+
+            _taction = _name + '.' + func_name
+            env['__action__'] = _taction
+
+            exec ('__result__.{0}[{3}] = {1}({2}, **__result__.{0})'.format(
+                pipe_name, _name, '__loader__', '__action__'), env)
+
             _env = {}
             _env.update(env)
             _env.update(cls.globals)
@@ -185,16 +309,17 @@ class PluginLoader(object):
                 setattr(cls.results, p_entry, {})
 
             for p in cls.plugin_pipeline[p_entry]:
-                if p not in cls.plugin_init:
+                _p = cls._plugin_realname(p)
+                if _p not in cls.plugin_init:
                     continue
-                if p not in cls.plugin_call:
+                if _p not in cls.plugin_call:
                     continue
-                if p not in cls.plugin_registry:
+                if _p not in cls.plugin_registry:
                     continue
-                if p not in cls.plugin_public_registry:
+                if _p not in cls.plugin_public_registry:
                     continue
 
-                lang = cls.plugin_lang.get(p, 'python')
+                lang = cls.plugin_lang.get(_p, 'python')
                 if 'python' in lang:
                     cls.run_python_plugin(p_entry, p)
                 else:
@@ -370,17 +495,21 @@ class PluginLoaderV1(PluginLoader):
                 _pipelines = []
                 config_pipeline(name, _pipelines)
 
+                plugin_realaction = lambda x: '.'.join([global_plugin[cls._plugin_realname(pn)], x.split('.')[1]]) if len(x.split('.')) > 1 else global_plugin[cls._plugin_realname(pn)]
+
                 if len(_pipelines) > 0 and isinstance(_pipelines[0], list):
                     for _i, _pipeline in enumerate(_pipelines):
                         _pipeline = [
-                            global_plugin[pn] for pn in _pipeline
-                            if pn in global_plugin and global_plugin[pn]
+                            plugin_realaction(pn) for pn in _pipeline
+                            if cls._plugin_realname(pn) in global_plugin
+                            and global_plugin[cls._plugin_realname(pn)]
                         ]
                         cls.set_pipeline(name, _pipeline, _i)
                 else:
                     _pipelines = [
-                        global_plugin[pn] for pn in _pipelines
-                        if pn in global_plugin and global_plugin[pn]
+                        plugin_realaction(pn) for pn in _pipelines
+                        if cls._plugin_realname(pn) in global_plugin
+                        and global_plugin[cls._plugin_realname(pn)]
                     ]
                     cls.set_pipeline(name, _pipelines)
 
