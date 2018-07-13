@@ -19,7 +19,6 @@
 
 import ConfigParser
 
-
 GLOBAL_CONFIG = {}
 
 
@@ -50,6 +49,7 @@ def singleton(cls, *args, **kw):
         if cls not in instances:
             instances[cls] = cls(*args, **kw)
         return instances[cls]
+
     return _singleton
 
 
@@ -63,5 +63,7 @@ def classprobe(entry_method, **kwargs):
             if cls not in instances:
                 instances[cls] = cls(*args, **kw)
             return instances[cls]
+
         return __singleton
+
     return _singleton

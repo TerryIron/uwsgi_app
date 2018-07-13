@@ -36,11 +36,17 @@ class Config(object):
             self.property[name] = func()
 
 
-def init_loader(c, global_config, settings,
-                default_framework='tornado', opt_frame='application.framework',
-                default_callable='application', opt_callable='application.callable',
-                default_route='make_route', opt_route='application.route',
-                default_init='init', opt_init='application.init'):
+def init_loader(c,
+                global_config,
+                settings,
+                default_framework='tornado',
+                opt_frame='application.framework',
+                default_callable='application',
+                opt_callable='application.callable',
+                default_route='make_route',
+                opt_route='application.route',
+                default_init='init',
+                opt_init='application.init'):
     _c = c.settings
     _framework = _c.get(opt_frame, default_framework)
     _module = modprobe(__name__ + '.' + _framework)

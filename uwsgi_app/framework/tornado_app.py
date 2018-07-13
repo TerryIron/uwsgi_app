@@ -48,11 +48,12 @@ def async_sleep(seconds):
 
 def call_later(delay=0):
     def wrap_loop(func):
-
         @wraps(func)
         def wrap_func(*args, **kwargs):
             return IOLoop.instance().call_later(delay, func, *args, **kwargs)
+
         return wrap_func
+
     return wrap_loop
 
 
@@ -72,9 +73,12 @@ def call_event(delta=60):
             except Exception as e:
                 pass
 
-            IOLoop.instance().add_timeout(datetime.timedelta(milliseconds=_delta), wrap_func)
+            IOLoop.instance().add_timeout(
+                datetime.timedelta(milliseconds=_delta), wrap_func)
             return ret
+
         return wrap_func
+
     return wrap_loop
 
 
@@ -126,7 +130,8 @@ def make_route(**routes):
     if not _target_routes:
         _target_routes = [(r'{0}'.format(i), modprobe(j)) for i, j in _routes]
     else:
-        _target_routes = [(r'{0}'.format(i), j) for i, j in _target_routes.items()]
+        _target_routes = [(r'{0}'.format(i), j)
+                          for i, j in _target_routes.items()]
     _ROUTE = _target_routes
     return _ROUTE
 

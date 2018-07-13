@@ -18,7 +18,6 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-
 from sqlalchemy import engine_from_config, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import configure_mappers
@@ -37,11 +36,11 @@ from .meta import Base as Base
 # all relationships can be setup
 configure_mappers()
 
-
-__all__ = ['Engine', 'EngineFactory', 'Table', 'get_engine',
-           'get_sqlalchemy_engine', 'get_hbase_engine',
-           'get_mongo_engine', 'get_sqlserver_engine',
-           'create_tables', 'get_session_factory', 'get_tm_session', 'get_mod_tables']
+__all__ = [
+    'Engine', 'EngineFactory', 'Table', 'get_engine', 'get_sqlalchemy_engine',
+    'get_hbase_engine', 'get_mongo_engine', 'get_sqlserver_engine',
+    'create_tables', 'get_session_factory', 'get_tm_session', 'get_mod_tables'
+]
 
 
 def _get_pointed_value(settings, prefix):
@@ -132,7 +131,8 @@ class Engine(object):
         :return:
         """
 
-        _instance = self._engine if not callable(self._engine) else self._engine()
+        _instance = self._engine if not callable(
+            self._engine) else self._engine()
         if hasattr(_instance, 'open') and callable(getattr(_instance, 'open')):
             _instance.open()
         return _instance
@@ -157,8 +157,10 @@ class Table(object):
     def __init__(self, inst):
         self.name = getattr(inst, '__tablename__')
         self.inst = inst
-        self.columns = [c for c in dir(inst) if not c.startswith('_')
-                        and c != 'id' and c != 'metadata']
+        self.columns = [
+            c for c in dir(inst)
+            if not c.startswith('_') and c != 'id' and c != 'metadata'
+        ]
 
 
 def get_engine(settings, prefix='sql.'):
@@ -231,11 +233,16 @@ def get_sqlserver_engine(url):
         _port = int(_port.split(';')[0])
     else:
         _port = 1433
-    logger.info('host:{0}, port:{1}, database:{2}'.format(_host, _port, _database))
+    logger.info('host:{0}, port:{1}, database:{2}'.format(
+        _host, _port, _database))
     logger.info('user:{0}, password:{1}'.format(_username, _password))
-    conn = pymssql.connect(host=_host, port=_port,
-                           user=_username, password=_password,
-                           database=_database, charset='utf8')
+    conn = pymssql.connect(
+        host=_host,
+        port=_port,
+        user=_username,
+        password=_password,
+        database=_database,
+        charset='utf8')
     return Engine(lambda: conn.cursor(as_dict=True), 'sqlserver')
 
 
@@ -331,5 +338,4 @@ def includeme(config):
         # r.tm is the transaction manager used by pyramid_tm
         lambda: get_tm_session(session_factory, transaction._manager),
         'dbsession',
-        reify=True
-    )
+        reify=True)

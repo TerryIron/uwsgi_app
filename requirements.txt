@@ -1,4 +1,4 @@
-autopep8
+yapf
 six==1.11.0
 geoalchemy2
 SQLAlchemy==1.1.9

@@ -19,7 +19,6 @@
 
 
 class PluginLoader(object):
-
     class Result(object):
         pass
 
@@ -51,7 +50,8 @@ class PluginLoader(object):
     @classmethod
     def import_plugin(cls, name):
         _name = 'plugin_' + str(name)
-        return cls.__plug_globals__[_name] if _name in cls.__plug_globals__ else None
+        return cls.__plug_globals__[
+            _name] if _name in cls.__plug_globals__ else None
 
     @classmethod
     def set_pipeline(cls, name, plugin_names, idx=None):
@@ -62,28 +62,32 @@ class PluginLoader(object):
             raise Exception('Pipeline {} is already exist'.format(_new_name))
         cls.plugin_pipeline[_new_name] = [p for p in plugin_names]
         setattr(cls.plugin_config, _new_name, dict())
-        getattr(cls.plugin_config, _new_name).update(getattr(cls.plugin_config, name))
+        getattr(cls.plugin_config, _new_name).update(
+            getattr(cls.plugin_config, name))
 
     @classmethod
-    def set_plugin(
-            cls,
-            name,
-            version,
-            funcs,
-            public_names,
-            init_name,
-            call_name,
-            lang='python',
-            libpath='.',
-            path='.'):
+    def set_plugin(cls,
+                   name,
+                   version,
+                   funcs,
+                   public_names,
+                   init_name,
+                   call_name,
+                   lang='python',
+                   libpath='.',
+                   path='.'):
         cls.plugin_lang[name] = lang
-        cls.plugin_registry[name] = dict([(n, f) for n, f in funcs if callable(f)])
+        cls.plugin_registry[name] = dict(
+            [(n, f) for n, f in funcs if callable(f)])
         cls.plugin_public_registry[name] = [
-            n for n in public_names if n in cls.plugin_registry[name]]
-        cls.plugin_init[name] = init_name if init_name in cls.plugin_registry[name] else None
+            n for n in public_names if n in cls.plugin_registry[name]
+        ]
+        cls.plugin_init[name] = init_name if init_name in cls.plugin_registry[
+            name] else None
         if not cls.plugin_init[name]:
             raise Exception('Plugin {} will not initialize'.format(name))
-        cls.plugin_call[name] = call_name if call_name in cls.plugin_registry[name] else None
+        cls.plugin_call[name] = call_name if call_name in cls.plugin_registry[
+            name] else None
         if not cls.plugin_call[name]:
             raise Exception('Plugin {} will not startup/callable'.format(name))
 
@@ -135,7 +139,9 @@ class PluginLoader(object):
         _lib_path = cls.get_plugin_import_path(name)
         _env = {}
         # basic plugin environ
-        _env.update(dict([('plugin_' + k, v) for k, v in cls.__plug_globals__.items()]))
+        _env.update(
+            dict(
+                [('plugin_' + k, v) for k, v in cls.__plug_globals__.items()]))
         # entry point of plugin function
         _env[name] = entry
         # system environ of plugin function
@@ -155,16 +161,18 @@ class PluginLoader(object):
         func_name = cls.plugin_call[name]
 
         def call_plugin_func():
-            env = cls._plugin_environ(name, cls.plugin_registry[name][func_name])
+            env = cls._plugin_environ(name,
+                                      cls.plugin_registry[name][func_name])
             # call plugin function
-            exec('__result__.{0} = {1}({2}, **__result__.{0})'.format(pipe_name,
-                                                                      name, getattr(cls.plugin_config, pipe_name)), env)
-            exec('_result = {}', env)
-            exec('__result__.{0} = _result'.format(pipe_name), env)
+            exec ('__result__.{0} = {1}({2}, **__result__.{0})'.format(
+                pipe_name, name, getattr(cls.plugin_config, pipe_name)), env)
+            exec ('_result = {}', env)
+            exec ('__result__.{0} = _result'.format(pipe_name), env)
             _env = {}
             _env.update(env)
             _env.update(cls.globals)
-            exec('PluginLoader.results = __result__', _env)
+            exec ('PluginLoader.results = __result__', _env)
+
         cls.pool.apply_async(call_plugin_func())
 
     @classmethod
@@ -212,7 +220,6 @@ class PluginLoader(object):
 
 
 class PluginLoaderV1(PluginLoader):
-
     @classmethod
     def load_plugins_from_config(cls, c):
 
@@ -259,10 +266,12 @@ class PluginLoaderV1(PluginLoader):
                     commands.getoutput(_cmd.format(_plugin_path, plugin_path))
 
                     app_json = json.load(open(app_config))
-                    app_requirements = app_json.get('imports', 'requirements.txt')
+                    app_requirements = app_json.get('imports',
+                                                    'requirements.txt')
 
                     _cmd = 'cd {}; virtualenv env; source env/bin/activate; pip install -r {}'
-                    commands.getoutput(_cmd.format(_plugin_home, app_requirements))
+                    commands.getoutput(
+                        _cmd.format(_plugin_home, app_requirements))
                 else:
                     app_json = json.load(open(app_config))
 
@@ -270,7 +279,8 @@ class PluginLoaderV1(PluginLoader):
 
                 app_name = app_json.get('name', '')
                 if not app_name:
-                    raise Exception('plugin {} app_name not found'.format(_home))
+                    raise Exception(
+                        'plugin {} app_name not found'.format(_home))
                 global_plugin[s.split('app:')[1]] = app_name
 
                 app_lang = app_json.get('lang', 'python')
@@ -278,12 +288,11 @@ class PluginLoaderV1(PluginLoader):
                 _globals = globals()
                 _globals['sys'] = cls.get_plugin_import_path(app_name)
                 app_actions = [(k,
-                                getattr(__import__('.'.join(v.split('.')[:-1]),
-                                                   _globals,
-                                                   locals()),
-                                        v.split('.')[-1])) for k,
-                               v in app_json.get('actions',
-                                                 {}).items()]
+                                getattr(
+                                    __import__('.'.join(v.split('.')[:-1]),
+                                               _globals, locals()),
+                                    v.split('.')[-1]))
+                               for k, v in app_json.get('actions', {}).items()]
                 app_public_actions = app_json.get('public_actions', [])
                 app_init = app_json.get('init', None)
                 app_call = app_json.get('call', None)
@@ -297,7 +306,6 @@ class PluginLoaderV1(PluginLoader):
         init_plugin_path()
 
         def init_plugin_config():
-
             def config_boardcast(n, pipe_name, pipe=None):
                 _pipe = pipe if pipe else []
                 _boardcast_name = 'boardcast:{}'.format(n)
@@ -305,12 +313,17 @@ class PluginLoaderV1(PluginLoader):
                 for _o in p.options(_boardcast_name):
                     if _o == 'align':
                         continue
-                    getattr(cls.plugin_config, pipe_name)[_o] = c.get(_pipe_name, _o)
+                    getattr(cls.plugin_config, pipe_name)[_o] = c.get(
+                        _pipe_name, _o)
                 for _n in p.get(_boardcast_name, 'align').split(' '):
                     if _n.startswith('p:'):
-                        raise Exception('Inline Pipeline not support, check Boardcast {}'.format(_boardcast_name))
+                        raise Exception(
+                            'Inline Pipeline not support, check Boardcast {}'.
+                            format(_boardcast_name))
                     if _n.startswith('b:'):
-                        raise Exception('Inline Boardcast not support, check Boardcast {}'.format(_boardcast_name))
+                        raise Exception(
+                            'Inline Boardcast not support, check Boardcast {}'.
+                            format(_boardcast_name))
                     _pipe = []
                     _pipe.extend(pipe)
                     _pipe.append(_n)
@@ -335,7 +348,9 @@ class PluginLoaderV1(PluginLoader):
                         _p.extend(pipe)
                         for i in pipe:
                             pipe.pop()
-                        pipe.extend(config_boardcast(_n.split('b:')[1], _pipe_name, _p))
+                        pipe.extend(
+                            config_boardcast(
+                                _n.split('b:')[1], _pipe_name, _p))
                     else:
                         if len(pipe) > 0 and isinstance(pipe[0], list):
                             for _i in range(len(pipe)):
@@ -357,12 +372,16 @@ class PluginLoaderV1(PluginLoader):
 
                 if len(_pipelines) > 0 and isinstance(_pipelines[0], list):
                     for _i, _pipeline in enumerate(_pipelines):
-                        _pipeline = [global_plugin[pn] for pn in _pipeline
-                                      if pn in global_plugin and global_plugin[pn]]
+                        _pipeline = [
+                            global_plugin[pn] for pn in _pipeline
+                            if pn in global_plugin and global_plugin[pn]
+                        ]
                         cls.set_pipeline(name, _pipeline, _i)
                 else:
-                    _pipelines = [global_plugin[pn] for pn in _pipelines
-                                  if pn in global_plugin and global_plugin[pn]]
+                    _pipelines = [
+                        global_plugin[pn] for pn in _pipelines
+                        if pn in global_plugin and global_plugin[pn]
+                    ]
                     cls.set_pipeline(name, _pipelines)
 
         init_plugin_config()

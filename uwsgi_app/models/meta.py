@@ -18,7 +18,6 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.schema import MetaData
 

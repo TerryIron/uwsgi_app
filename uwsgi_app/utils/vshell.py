@@ -47,13 +47,12 @@ class VShell(object):
             def __init__(self, command):
                 self.command = command
 
-            def install_argument(
-                    self,
-                    args,
-                    store_name,
-                    default=None,
-                    is_bool=False,
-                    help_text=None):
+            def install_argument(self,
+                                 args,
+                                 store_name,
+                                 default=None,
+                                 is_bool=False,
+                                 help_text=None):
                 args = [args] if not isinstance(args, list) else args
                 if is_bool:
                     if default:
@@ -62,11 +61,13 @@ class VShell(object):
                         action = 'store_true'
                 else:
                     action = 'store'
-                self.command.add_argument(*args,
-                                          default=default,
-                                          dest=store_name,
-                                          action=action,
-                                          help=help_text)
+                self.command.add_argument(
+                    *args,
+                    default=default,
+                    dest=store_name,
+                    action=action,
+                    help=help_text)
+
         return SubCommand(sub_command)
 
     def prepare(self):

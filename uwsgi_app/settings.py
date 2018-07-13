@@ -7,7 +7,5 @@ settings = {
     "transfer_host": "",
     "transfer_port": "",
     "transfer_db": "",
-    "server_routes": [
-        ["/.*", ""]
-    ]
+    "server_routes": [["/.*", ""]]
 }
