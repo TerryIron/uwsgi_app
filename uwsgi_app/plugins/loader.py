@@ -101,6 +101,12 @@ class PluginLoader(object):
                     self.setLevel(_level)
                     self.logger = True
 
+            def add_handler(self, file_name):
+                _h = logging.FileHandler(file_name)
+                _h.setFormatter(logging.Formatter(LOGGER_FORMAT))
+                self.addHandler(_h)
+
+
         def get_logger(name):
             logger = Logger(name)
             return logger
