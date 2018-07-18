@@ -295,8 +295,8 @@ class PluginLoader(object):
             _taction = _name + '.' + func_name
             env['__action__'] = _taction
 
-            exec ('__result__.{0}[{3}] = {1}({2}, **__result__.{0})'.format(
-                pipe_name, _name, '__loader__', '__action__'), env)
+            exec ('__result__.{0} = {1}({2}, **__result__.{0})'.format(
+                pipe_name, _name, '__loader__'), env)
 
             _env = {}
             _env.update(env)
