@@ -106,7 +106,6 @@ class PluginLoader(object):
                 _h.setFormatter(logging.Formatter(LOGGER_FORMAT))
                 self.addHandler(_h)
 
-
         def get_logger(name):
             logger = Logger(name)
             return logger
@@ -136,11 +135,13 @@ class PluginLoader(object):
     plugin_call = {}  # 插件call配置, 如{'pluginA': [NAME]}
     plugin_lang = {}  # 插件私有环境, 如{'pluginA': 'python'}
     plugin_pipeline = {}  # 插件流程配置, 如{'pipelineA': [PLUGINS]}
+    plugin_channels = {}  # 插件数据管道配置, 如{'pipelineA': [CHANNEL]}
     plugins = []  # 插件配置入口, [pipelineA, pipelineB]
 
     plugin_config = Config()
     plugin_loader = Loader()
     results = Result()
+    result_channel = ('data', 'result')
 
     globals = {}
     paths = []
@@ -163,13 +164,14 @@ class PluginLoader(object):
             _name] if _name in cls.__plug_globals__ else None
 
     @classmethod
-    def set_pipeline(cls, name, plugin_names, idx=None):
+    def set_pipeline(cls, name, plugin_names, channel_names, idx=None):
         _new_name = name if not idx else name + str(idx)
         if _new_name not in cls.plugins:
             cls.plugins.append(_new_name)
         else:
             raise Exception('Pipeline {} is already exist'.format(_new_name))
         cls.plugin_pipeline[_new_name] = [p for p in plugin_names]
+        cls.plugin_channels[_new_name] = [p for p in channel_names]
         setattr(cls.plugin_config, _new_name, dict())
         getattr(cls.plugin_config, _new_name).update(
             getattr(cls.plugin_config, name))
@@ -264,14 +266,16 @@ class PluginLoader(object):
         _env['__file__'] = globals()['__file__']
         _env['__package__'] = None
         _env['__name__'] = name
+        _env['__error__'] = []
         _env['__plugin__'] = cls.__plug_path__[name]
         _env['__result__'] = cls.results
+        _env['__channels__'] = cls.result_channel
         globals().clear()
         globals().update(_env)
         return _env
 
     @classmethod
-    def run_python_plugin(cls, pipe_name, name):
+    def run_python_plugin(cls, pipe_name, name, channel):
 
         _name = cls._plugin_realname(name)
         _action = cls._plugin_realaction(name)
@@ -289,15 +293,23 @@ class PluginLoader(object):
                                       cls.plugin_registry[_name][func_name])
             # call plugin function
             d = getattr(cls.plugin_loader, pipe_name)
-            setattr(d, 'log', cls.get_logger('.'.join([pipe_name, _name])))
+            setattr(d, 'channel_scope', ('data', 'result'))
+            setattr(d, 'channel', channel)
+            setattr(d, 'logger', cls.get_logger('.'.join([pipe_name, _name])))
             env['__loader__'] = d
 
+            env['__pipe__'] = pipe_name
             _taction = _name + '.' + func_name
             env['__action__'] = _taction
 
             exec ('__result__.{0} = {1}({2}, **__result__.{0})'.format(
                 pipe_name, _name, '__loader__'), env)
-
+            exec (
+                '__error__ = [Exception("Result Channel:" + c + '
+                '" not found in Pipeline:" + __pipe__ + " Action:" + __action__) '
+                'for c in __channels__ if c not in __result__.{0}]'.format(
+                    pipe_name), env)
+            exec ('if __error__: raise __error__[0]', env)
             _env = {}
             _env.update(env)
             _env.update(cls.globals)
@@ -311,11 +323,14 @@ class PluginLoader(object):
         for p_entry in cls.plugins:
             if p_entry not in cls.plugin_pipeline:
                 continue
+            if p_entry not in cls.plugin_channels:
+                continue
             if not hasattr(cls.results, p_entry):
                 setattr(cls.results, p_entry, {})
 
-            for p in cls.plugin_pipeline[p_entry]:
+            for i, p in enumerate(cls.plugin_pipeline[p_entry]):
                 _p = cls._plugin_realname(p)
+                n = cls.plugin_channels[p_entry][i]
                 if _p not in cls.plugin_init:
                     continue
                 if _p not in cls.plugin_call:
@@ -327,7 +342,7 @@ class PluginLoader(object):
 
                 lang = cls.plugin_lang.get(_p, 'python')
                 if 'python' in lang:
-                    cls.run_python_plugin(p_entry, p)
+                    cls.run_python_plugin(p_entry, p, n)
                 else:
                     pass
         globals().clear()
@@ -418,12 +433,19 @@ class PluginLoaderV1(PluginLoader):
                 app_version = app_json.get('version', '0.01')
                 _globals = globals()
                 _globals['sys'] = cls.get_plugin_import_path(app_name)
-                app_actions = [(k,
-                                getattr(
-                                    __import__('.'.join(v.split('.')[:-1]),
-                                               _globals, locals()),
-                                    v.split('.')[-1]))
-                               for k, v in app_json.get('actions', {}).items()]
+                app_actions = []
+                for k, v in app_json.get('actions', {}).items():
+                    _callable_name = v.split('.')[-1]
+                    try:
+                        _callable = getattr(
+                            __import__('.'.join(v.split('.')[:-1]), _globals,
+                                       locals()), _callable_name)
+                    except AttributeError as e:
+                        raise Exception(
+                            'App:{} inline function:{} not found'.format(
+                                app_name, k))
+                    d = (k, _callable)
+                    app_actions.append(d)
                 app_public_actions = app_json.get('public_actions', [])
                 app_init = app_json.get('init', None)
                 app_call = app_json.get('call', None)
@@ -437,16 +459,22 @@ class PluginLoaderV1(PluginLoader):
         init_plugin_path()
 
         def init_plugin_config():
-            def config_boardcast(n, pipe_name, pipe=None):
-                _pipe = pipe if pipe else []
+            def config_boardcast(n, pipe_name, pipe=None, channel=None):
+                pipe = pipe if pipe else []
+                channel = channel if channel else []
                 _boardcast_name = 'boardcast:{}'.format(n)
-                _new_pipe = []
+                _new_pipe, _new_channel = [], []
                 for _o in p.options(_boardcast_name):
                     if _o == 'align':
                         continue
                     getattr(cls.plugin_config, pipe_name)[_o] = c.get(
                         _pipe_name, _o)
-                for _n in p.get(_boardcast_name, 'align').split(' '):
+                _aligns = p.get(_boardcast_name, 'align').split(' ')
+                for _i, _n in enumerate(_aligns):
+                    if _n.startswith('c:'):
+                        raise Exception(
+                            'Inline Channel not support, check Boardcast {}'.
+                            format(_boardcast_name))
                     if _n.startswith('p:'):
                         raise Exception(
                             'Inline Pipeline not support, check Boardcast {}'.
@@ -455,39 +483,71 @@ class PluginLoaderV1(PluginLoader):
                         raise Exception(
                             'Inline Boardcast not support, check Boardcast {}'.
                             format(_boardcast_name))
-                    _pipe = []
+                    _pipe, _channel = [], []
                     _pipe.extend(pipe)
+                    _channel.extend(channel)
                     _pipe.append(_n)
                     _new_pipe.append(_pipe)
+                    _new_channel.append(_channel)
                 if not _new_pipe:
                     _new_pipe.extend(pipe)
-                return _new_pipe
+                if not _new_channel:
+                    _new_pipe.extend(channel)
+                return _new_pipe, _new_channel
 
-            def config_pipeline(n, pipe):
+            def config_pipeline(n, pipe, channel):
                 _pipe_name = 'pipeline:{}'.format(n)
+
                 if not hasattr(cls.plugin_config, _pipe_name):
                     setattr(cls.plugin_config, n, dict())
+
                 for _o in p.options(_pipe_name):
                     if _o == 'align':
                         continue
                     getattr(cls.plugin_config, n)[_o] = c.get(_pipe_name, _o)
-                for _n in p.get(_pipe_name, 'align').split(' '):
+
+                _aligns = p.get(_pipe_name, 'align').split(' ')
+                for _i, _n in enumerate(_aligns):
                     if _n.startswith('p:'):
-                        config_pipeline(_n.split('p:')[1], pipe)
+                        config_pipeline(_n.split('p:')[1], pipe, channel)
                     elif _n.startswith('b:'):
-                        _p = []
+                        _p, _c = [], []
                         _p.extend(pipe)
-                        for i in pipe:
+                        _c.extend(channel)
+                        for i in range(len(pipe)):
                             pipe.pop()
-                        pipe.extend(
-                            config_boardcast(
-                                _n.split('b:')[1], _pipe_name, _p))
+                        for i in range(len(channel)):
+                            channel.pop()
+                        _boardcast_result = config_boardcast(
+                            _n.split('b:')[1], _pipe_name, _p, _c)
+                        pipe.extend(_boardcast_result[0])
+                        channel.extend(_boardcast_result[1])
+                    elif _n.startswith('c:'):
+                        continue
                     else:
                         if len(pipe) > 0 and isinstance(pipe[0], list):
                             for _i in range(len(pipe)):
                                 pipe[_i].append(_n)
                         else:
                             pipe.append(_n)
+                    try:
+                        _align_channel = _aligns[_i + 1]
+                        if _align_channel.startswith('c:'):
+                            _channel_name = _align_channel.split('c:')[1]
+                            if _channel_name not in cls.result_channel:
+                                raise Exception(
+                                    'Inline channel type not support, check Pipeline {}'.
+                                    format(n))
+                        else:
+                            _channel_name = 'data'
+                    except:
+                        _channel_name = None
+                    if _channel_name:
+                        if len(channel) > 0 and isinstance(channel[0], list):
+                            for _i in range(len(channel)):
+                                channel[_i].append(_channel_name)
+                        else:
+                            channel.append(_channel_name)
 
             if not p.has_section('plugin:main'):
                 return
@@ -498,8 +558,8 @@ class PluginLoaderV1(PluginLoader):
                     continue
                 if not p.has_option('pipeline:{}'.format(name), 'align'):
                     continue
-                _pipelines = []
-                config_pipeline(name, _pipelines)
+                _pipelines, _channels = [], ['data']
+                config_pipeline(name, _pipelines, _channels)
 
                 plugin_realaction = lambda x: '.'.join([global_plugin[cls._plugin_realname(pn)], x.split('.')[1]]) if len(x.split('.')) > 1 else global_plugin[cls._plugin_realname(pn)]
 
@@ -510,13 +570,13 @@ class PluginLoaderV1(PluginLoader):
                             if cls._plugin_realname(pn) in global_plugin
                             and global_plugin[cls._plugin_realname(pn)]
                         ]
-                        cls.set_pipeline(name, _pipeline, _i)
+                        cls.set_pipeline(name, _pipeline, _channels[_i], _i)
                 else:
                     _pipelines = [
                         plugin_realaction(pn) for pn in _pipelines
                         if cls._plugin_realname(pn) in global_plugin
                         and global_plugin[cls._plugin_realname(pn)]
                     ]
-                    cls.set_pipeline(name, _pipelines)
+                    cls.set_pipeline(name, _pipelines, _channels)
 
         init_plugin_config()
