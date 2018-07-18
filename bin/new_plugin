@@ -14,7 +14,7 @@ cat >> requirements.txt << EOF
 EOF
 cat >> app.json << EOF
 {
-    "version": "0.01",
+    "version": "0.1.0",
     "type": "basic",
     "name": "$plugin_name",
     "language": "python2",
