@@ -321,24 +321,22 @@ class PluginLoader(object):
             env['__runner__'] = False
             try:
                 exec (
-                    'if isinstance({0}, types.GeneratorType): __runner__, __call__ = True, {0}'.
-                    format(_name), env)
+                    'if isinstance({0}, types.GeneratorType): __runner__, __call__, __error__ = True, {0}, {1}'.
+                    format(_name, index), env)
                 exec (
                     'if isinstance({1}, types.GeneratorType): __result__.{0} = {1}.next()'.
                     format(pipe_name, _name), env)
-                env['__error__'] = index
             except Exception as StopIteration:
                 env['__error__'] = None
 
             if not env['__runner__']:
                 try:
                     exec (
-                        'if isinstance(__result__.{0}, types.GeneratorType): __run__, __call__ = True, __result__.{0}'.
-                        format(pipe_name), env)
+                        'if isinstance(__result__.{0}, types.GeneratorType): __run__, __call__, __error__ = True, __result__.{0}, {1}'.
+                        format(pipe_name, index), env)
                     exec (
                         'if isinstance(__result__.{0}, types.GeneratorType): __result__.{0} = __result__.{0}.next()'.
                         format(pipe_name), env)
-                    env['__error__'] = index
                 except Exception as StopIteration:
                     env['__error__'] = None
 
