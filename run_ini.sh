@@ -10,4 +10,4 @@ CONFIG=$1
     }
 }
 
-./puwsgi run --server-port 6543 --server-host 0.0.0.0 --config ${CONFIG}
+python puwsgi run --server-port 6543 --server-host 0.0.0.0 --config ${CONFIG}
