@@ -112,6 +112,8 @@ class PluginLoader(object):
 
         return get_logger(name)
 
+    _LOGGER = None
+
     class Result(object):
         pass
 
@@ -244,14 +246,20 @@ class PluginLoader(object):
         return _plugin_path
 
     @classmethod
-    def get_plugin_import_path(cls, name):
+    def get_plugin_import_path(cls, name, lang='python2'):
         import os.path as op
         _plugin_path = cls.get_plugin_path()
         _lib_path = cls.__plug_libpath__.get(name, op.join(_plugin_path, name))
-        import sys
-        sys.path = ['.', _plugin_path]
-        sys.path.insert(0, _lib_path)
-        return sys
+        reload(cls.sys)
+        cls.sys.path = ['', _plugin_path]
+        cls.sys.path.insert(1, _lib_path)
+        cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7'))
+        cls.sys.path.insert(
+            1, op.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
+        cls.sys.path.insert(
+            1, op.join(_lib_path, 'env/lib/python2.7/site-packages'))
+        cls.sys.path.insert(1, '/usr/lib/python2.7')
+        return cls.sys
 
     @classmethod
     def _plugin_environ(cls, name, entry):
@@ -416,6 +424,7 @@ class PluginLoader(object):
 
     @classmethod
     def start_plugins(cls):
+        cls._LOGGER = cls.get_logger(__name__)
         _path = cls.init_plugins()
         cls._load_plugins(_path)
         cls._run_plugins()
@@ -464,6 +473,8 @@ class PluginLoaderV1(PluginLoader):
                 app_config = os.path.join(_plugin_home, 'app.json')
 
                 if not os.path.exists(_plugin_home):
+                    cls._LOGGER.info(
+                        'Plugin:{} initalize and start'.format(_plugin_home))
                     _cmd = 'unzip {} -d {}'
                     commands.getoutput(_cmd.format(_plugin_path, plugin_path))
 
@@ -471,13 +482,12 @@ class PluginLoaderV1(PluginLoader):
                     app_requirements = app_json.get('imports',
                                                     'requirements.txt')
 
-                    _cmd = 'cd {}; virtualenv env; source env/bin/activate; pip install -r {}'
+                    _cmd = 'cd {}; virtualenv --no-site-packages env; source env/bin/activate; pip install -r {}; cd -'
                     commands.getoutput(
                         _cmd.format(_plugin_home, app_requirements))
                 else:
+                    cls._LOGGER.info('Plugin:{} start'.format(_plugin_home))
                     app_json = json.load(open(app_config))
-
-                app_env = os.path.join(_plugin_home, 'env/lib/python2.7')
 
                 app_name = app_json.get('name', '')
                 if not app_name:
@@ -485,26 +495,42 @@ class PluginLoaderV1(PluginLoader):
                         'plugin {} app_name not found'.format(_home))
                 global_plugin[s.split('app:')[1]] = app_name
 
-                app_lang = app_json.get('lang', 'python')
-                app_version = app_json.get('version', '0.01')
-                _globals = globals()
-                _globals['sys'] = cls.get_plugin_import_path(app_name)
+                app_env = os.path.join(_plugin_home, 'env/lib/python2.7')
+                app_lang = app_json.get('lang', 'python2')
+                cls._LOGGER.info('App:{} lanuage:{}'.format(
+                    app_name, app_lang))
+                app_version = app_json.get('version', '0.1.0')
+                cls._LOGGER.info('App:{} version:{}'.format(
+                    app_name, app_version))
                 app_actions = []
+                _globals = globals()
+                _globals['sys'] = cls.get_plugin_import_path(
+                    app_name, app_lang)
                 for k, v in app_json.get('actions', {}).items():
                     _callable_name = v.split('.')[-1]
+                    _callable_mod = v.split('.')[-2]
+                    _callable_mods = '.'.join([app_name] + v.split('.')[:-1])
                     try:
-                        _callable = getattr(
-                            __import__('.'.join(v.split('.')[:-1]), _globals,
-                                       locals()), _callable_name)
+                        cls._LOGGER.info('App:{} import action:{} {}'.format(
+                            app_name, k, v))
+                        _mod = __import__(_callable_mods, _globals, locals(),
+                                          _callable_mod)
+                        _callable = getattr(_mod, _callable_name)
                     except AttributeError as e:
                         raise Exception(
-                            'App:{} inline function:{} not found'.format(
-                                app_name, k))
+                            'App:{} inline function:{} {} not found'.format(
+                                app_name, k, v))
                     d = (k, _callable)
                     app_actions.append(d)
                 app_public_actions = app_json.get('public_actions', [])
+                cls._LOGGER.info('App:{} public actions:{}'.format(
+                    app_name, app_public_actions))
                 app_init = app_json.get('init', None)
+                cls._LOGGER.info('App:{} init action:{}'.format(
+                    app_name, app_init))
                 app_call = app_json.get('call', None)
+                cls._LOGGER.info('App:{} default action:{}'.format(
+                    app_name, app_call))
                 if not app_init:
                     raise Exception('plugin {} can not init'.format(_home))
 
