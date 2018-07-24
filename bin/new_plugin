@@ -29,6 +29,38 @@ cat >> README.md<< EOF
     arg:logger.path=配置日志文件
 ```
 EOF
+cat >> app.py << EOF
+#!/usr/bin/env python                                                                                                                                                             
+# -*- coding: utf-8 -*-
+
+
+class Application(object):
+    import logging
+
+    def __init__(self):
+        self.logger = logging.get_logger(__name__)
+
+    def set_logger(self, logger):
+        self.logger = logger
+
+
+APP = None
+CONFIG = {}
+
+
+def init():
+    global APP
+    APP = Application()
+    CONFIG['logger.path'] = '/tmp/$plugin_name.log'
+
+
+def start(loader, **kwargs):
+    pass
+
+
+def stop(loader, **kwargs):
+    pass
+EOF
 cat >> app.json << EOF
 {
     "version": "0.1.0",
@@ -37,8 +69,12 @@ cat >> app.json << EOF
     "language": "python2",
     "imports": "requirements.txt",
     "actions": {
+        "start": "app.start",
+        "stop": "app.stop"
     },
     "public_actions": [
+        "start",
+        "stop"
     ],
     "init": "",
     "call": ""
