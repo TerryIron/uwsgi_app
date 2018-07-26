@@ -10,6 +10,8 @@ function new_plugin() {
     mkdir -p $plugin_name
     cd $plugin_name
 
+cat >> __init__.py << EOF
+EOF
 cat >> requirements.txt << EOF
 EOF
 cat >> README.md<< EOF
@@ -33,9 +35,10 @@ cat >> app.py << EOF
 #!/usr/bin/env python                                                                                                                                                             
 # -*- coding: utf-8 -*-
 
+import logging
+
 
 class Application(object):
-    import logging
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -55,11 +58,11 @@ def init():
 
 
 def start(loader, **kwargs):
-    pass
+    return {'result': {}, 'data': {}}
 
 
 def stop(loader, **kwargs):
-    pass
+    return {'result': {}, 'data': {}}
 EOF
 cat >> app.json << EOF
 {
@@ -69,6 +72,7 @@ cat >> app.json << EOF
     "language": "python2",
     "imports": "requirements.txt",
     "actions": {
+        "init": "app.init",
         "start": "app.start",
         "stop": "app.stop"
     },
@@ -76,8 +80,8 @@ cat >> app.json << EOF
         "start",
         "stop"
     ],
-    "init": "",
-    "call": ""
+    "init": "init",
+    "call": "start"
 }
 EOF
     cd $old_pwd
