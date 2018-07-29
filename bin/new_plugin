@@ -11,13 +11,13 @@ function new_plugin() {
 
     cd $plugin_path
     mkdir -p $plugin_type$split$plugin_name
-    cd $plugin_type$split$plugin_name
+    local _plugin=$plugin_type$split$plugin_name
 
-cat >> __init__.py << EOF
+cat >> $_plugin/__init__.py << EOF
 EOF
-cat >> requirements.txt << EOF
+cat >> $_plugin/requirements.txt << EOF
 EOF
-cat >> README.md<< EOF
+cat >> $_plugin/README.md<< EOF
 # $plugin_name README
 
 ## Actions(支持操作)
@@ -34,7 +34,7 @@ cat >> README.md<< EOF
     arg:logger.path=配置日志文件
 \`\`\`
 EOF
-cat >> app.py << EOF
+cat >> $_plugin/app.py << EOF
 #!/usr/bin/env python                                                                                                                                                             
 # -*- coding: utf-8 -*-
 
@@ -67,7 +67,7 @@ def start(loader, **kwargs):
 def stop(loader, **kwargs):
     return {'result': {}, 'data': {}}
 EOF
-cat >> app.json << EOF
+cat >> $_plugin/app.json << EOF
 {
     "version": "$plugin_ver",
     "type": "$plugin_type",
