@@ -11,7 +11,7 @@ function new_plugin() {
 
     cd $plugin_path
     mkdir -p $plugin_type$split$plugin_name
-    cd $plugin_name
+    cd $plugin_type$split$plugin_name
 
 cat >> __init__.py << EOF
 EOF
