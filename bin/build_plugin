@@ -27,7 +27,7 @@ function main() {
 
     cd $plugin_path
     [ -d "$plugin_name" ] || {
-        echo "plugin $plugin_name is exist"
+        echo "plugin $plugin_name is not exist"
         cd $old_pwd
         exit 1
     }

@@ -4,10 +4,13 @@
 function new_plugin() {
     local plugin_name="$1"
     local plugin_path="$2"
+    local plugin_type="$3"
+    local plugin_ver="$4"
     local old_pwd=$(pwd)
+    local split="_"
 
     cd $plugin_path
-    mkdir -p $plugin_name
+    mkdir -p $plugin_type$split$plugin_name
     cd $plugin_name
 
 cat >> __init__.py << EOF
@@ -66,9 +69,9 @@ def stop(loader, **kwargs):
 EOF
 cat >> app.json << EOF
 {
-    "version": "0.1.0",
-    "type": "basic",
-    "name": "$plugin_name",
+    "version": "$plugin_ver",
+    "type": "$plugin_type",
+    "name": "$plugin_type$split$plugin_name",
     "language": "python2",
     "imports": "requirements.txt",
     "actions": {
@@ -89,12 +92,14 @@ EOF
 }
 
 function help() {
-    echo "usage: new_plugin [-h] PLUGIN_NAME PLUGIN_PATH ..."
+    echo "usage: new_plugin [-h] PLUGIN_NAME PLUGIN_TYPE PLUGIN_VER PLUGIN_PATH ..."
 }
 
 function main() {
     local plugin_name="$1"
     local plugin_path="$2"
+    local plugin_type="$3"
+    local plugin_ver="$4"
     local old_pwd=$(pwd)
 
     cd $plugin_path
@@ -104,11 +109,20 @@ function main() {
         exit 1
     }
     cd $old_pwd
-    new_plugin "$plugin_name" "$plugin_path"
+    new_plugin "$plugin_name" "$plugin_path" "$plugin_type" "$plugin_ver"
 }
 
-target_path=$2
-[ "$target_path" != "" ] || {
+target_type=$2
+target_ver=$3
+target_path=$4
+[ -z "$target_type" ] && {
+    help 
+    exit
+}
+[ -z "$target_ver" ] && {
+    target_ver="0.1.0"
+}
+[ -z "$target_path" ] && {
     target_path=$(pwd)
 }
 [ "$1" == "-h" ] && {
@@ -121,4 +135,4 @@ target_path=$2
     }
 }
 
-main "$1" "$target_path"
+main "$1" "$target_path" "$target_type" "$target_ver"
