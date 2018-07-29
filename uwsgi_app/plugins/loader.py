@@ -482,9 +482,10 @@ class PluginLoaderV1(PluginLoader):
                     app_requirements = app_json.get('imports',
                                                     'requirements.txt')
 
-                    _cmd = 'cd {}; virtualenv --no-site-packages env; source env/bin/activate; pip install -r {}; cd -'
+                    _repo = 'https://pypi.douban.com/simple/'
+                    _cmd = 'cd {} && virtualenv env --no-site-packages &&. env/bin/activate && pip install -r {} -i {} && cd -'
                     commands.getoutput(
-                        _cmd.format(_plugin_home, app_requirements))
+                        _cmd.format(_plugin_home, app_requirements, _repo))
                 else:
                     cls._LOGGER.info('Plugin:{} start'.format(_plugin_home))
                     app_json = json.load(open(app_config))
