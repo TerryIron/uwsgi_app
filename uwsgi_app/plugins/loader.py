@@ -143,6 +143,7 @@ class PluginLoader(object):
     plugins = []  # 插件配置入口, [pipelineA, pipelineB]
 
     plugin_config = Config()
+    plugin_runner_config = Config()
     plugin_loader = Loader()
     results = Result()
     result_channel = ('data', 'result')
@@ -176,13 +177,13 @@ class PluginLoader(object):
             raise Exception('Pipeline {} is already exist'.format(_new_name))
         cls.plugin_pipeline[_new_name] = [p for p in plugin_names]
         cls.plugin_channels[_new_name] = [p for p in channel_names]
-        setattr(cls.plugin_config, _new_name, dict())
-        getattr(cls.plugin_config, _new_name).update(
+        setattr(cls.plugin_runner_config, _new_name, dict())
+        getattr(cls.plugin_runner_config, _new_name).update(
             getattr(cls.plugin_config, name))
 
         setattr(cls.results, _new_name, dict())
         d = cls.Loader()
-        setattr(d, 'config', getattr(cls.plugin_config, _new_name))
+        setattr(d, 'config', getattr(cls.plugin_runner_config, _new_name))
         setattr(cls.plugin_loader, _new_name, d)
 
     @classmethod
@@ -550,8 +551,9 @@ class PluginLoaderV1(PluginLoader):
                 for _o in p.options(_boardcast_name):
                     if _o == 'align':
                         continue
-                    getattr(cls.plugin_config, pipe_name)[_o] = c.get(
-                        _pipe_name, _o)
+                    else:
+                        getattr(cls.plugin_config, pipe_name)[_o] = p.get(
+                            _pipe_name, _o)
                 _aligns = p.get(_boardcast_name, 'align').split(' ')
                 for _i, _n in enumerate(_aligns):
                     if _n.startswith('c:'):
@@ -587,7 +589,8 @@ class PluginLoaderV1(PluginLoader):
                 for _o in p.options(_pipe_name):
                     if _o == 'align':
                         continue
-                    getattr(cls.plugin_config, n)[_o] = c.get(_pipe_name, _o)
+                    else:
+                        getattr(cls.plugin_config, n)[_o] = p.get(_pipe_name, _o)
 
                 _aligns = p.get(_pipe_name, 'align').split(' ')
                 for _i, _n in enumerate(_aligns):
