@@ -125,6 +125,8 @@ class PluginLoader(object):
 
     import sys
     import os.path as op
+    from gevent import monkey
+    monkey.patch_all()
     from gevent.pool import Pool
     pool = Pool(1000)
 
@@ -246,7 +248,6 @@ class PluginLoader(object):
         _plugin_path = op.abspath(op.dirname(__file__))
         return _plugin_path
 
-
     @classmethod
     def get_plugin_import_path(cls, name, lang='python2'):
         import os.path as op
@@ -255,12 +256,13 @@ class PluginLoader(object):
         reload(cls.sys)
         cls.sys.path = ['', _plugin_path]
         cls.sys.path.insert(1, _lib_path)
-        cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7'))                                                                                                           
-        cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7/lib-dynload'))
-        cls.sys.path.insert(1, 
-                op.join(_lib_path, 'env/lib/python2.7/site-packages'))
-        cls.sys.path.insert(1, 
-                op.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
+        cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7'))
+        cls.sys.path.insert(
+            1, op.join(_lib_path, 'env/lib/python2.7/lib-dynload'))
+        cls.sys.path.insert(
+            1, op.join(_lib_path, 'env/lib/python2.7/site-packages'))
+        cls.sys.path.insert(
+            1, op.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
         cls.sys.path.insert(1, '/usr/lib/python2.7')
         return cls.sys
 
@@ -305,6 +307,7 @@ class PluginLoader(object):
                     pipe_name, _action))
 
         def call_plugin_func():
+            import traceback
             _reg_func = cls.plugin_registry[_name][func_name]
             _loop_func = cls.plugin_generator[_name][func_name]
             _real_func = _loop_func if index > 0 and _reg_func != _loop_func else _reg_func
@@ -324,8 +327,9 @@ class PluginLoader(object):
             env['types'] = types
 
             env['__runner__'] = False
+
             exec (
-                'if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, types.GeneratorType): __result__.{0}, __runner__ = {1}({2}, **__result__.{0}), True'.
+                'if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, types.GeneratorType): __result__.{0}, __runner__ = {1}({2}, **(__result__.{0} or dict(data=dict()))), True'.
                 format(pipe_name, _name, '__loader__'), env)
             exec ('if __runner__: __call__ = {0}'.format(_name), env)
 
@@ -337,6 +341,9 @@ class PluginLoader(object):
                 exec (
                     'if isinstance({1}, types.GeneratorType): __result__.{0} = {1}.next()'.
                     format(pipe_name, _name), env)
+            except Exception as e:
+                cls._LOGGER.error(traceback.format_exc())
+                raise e
             except Exception as StopIteration:
                 env['__error__'] = None
 
@@ -348,6 +355,9 @@ class PluginLoader(object):
                     exec (
                         'if isinstance(__result__.{0}, types.GeneratorType): __result__.{0} = __result__.{0}.next()'.
                         format(pipe_name), env)
+                except Exception as e:
+                    cls._LOGGER.error(traceback.format_exc())
+                    raise e
                 except Exception as StopIteration:
                     env['__error__'] = None
 
@@ -592,7 +602,8 @@ class PluginLoaderV1(PluginLoader):
                     if _o == 'align':
                         continue
                     else:
-                        getattr(cls.plugin_config, n)[_o] = p.get(_pipe_name, _o)
+                        getattr(cls.plugin_config, n)[_o] = p.get(
+                            _pipe_name, _o)
 
                 _aligns = p.get(_pipe_name, 'align').split(' ')
                 for _i, _n in enumerate(_aligns):
