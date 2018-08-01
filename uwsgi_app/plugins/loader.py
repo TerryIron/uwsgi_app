@@ -248,6 +248,7 @@ class PluginLoader(object):
         _plugin_path = op.abspath(op.dirname(__file__))
         return _plugin_path
 
+
     @classmethod
     def get_plugin_import_path(cls, name, lang='python2'):
         import os.path as op
@@ -257,12 +258,11 @@ class PluginLoader(object):
         cls.sys.path = ['', _plugin_path]
         cls.sys.path.insert(1, _lib_path)
         cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7'))
-        cls.sys.path.insert(
-            1, op.join(_lib_path, 'env/lib/python2.7/lib-dynload'))
-        cls.sys.path.insert(
-            1, op.join(_lib_path, 'env/lib/python2.7/site-packages'))
-        cls.sys.path.insert(
-            1, op.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
+        cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7/lib-dynload'))
+        cls.sys.path.insert(1,
+                op.join(_lib_path, 'env/lib/python2.7/site-packages'))
+        cls.sys.path.insert(1,
+                op.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
         cls.sys.path.insert(1, '/usr/lib/python2.7')
         return cls.sys
 
@@ -329,8 +329,7 @@ class PluginLoader(object):
             env['__runner__'] = False
 
             exec (
-                'if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, types.GeneratorType): __result__.{0}, __runner__ = {1}({2}, **(__result__.{0} or dict(data=dict()))), True'.
-                format(pipe_name, _name, '__loader__'), env)
+                'if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, types.GeneratorType): __result__.{0}, __runner__ = {1}({2}, **(__result__.{0} or dict(data=dict()))), True'.format(pipe_name, _name, '__loader__'), env)
             exec ('if __runner__: __call__ = {0}'.format(_name), env)
 
             env['__runner__'] = False
@@ -389,6 +388,22 @@ class PluginLoader(object):
 
     @classmethod
     def run_plugins(cls):
+        import os
+        import multiprocessing
+        __pids = []
+
+        os.environ['PYTHONOPTIMIZE'] = '1'
+
+        def kill_pid(pid):
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+
+        def kill_process(*args, **kwargs):
+            for _pid in __pids:
+                kill_pid(_pid)
+
         cls.globals.update(globals())
         for p_entry in cls.plugins:
             if p_entry not in cls.plugin_pipeline:
@@ -417,10 +432,18 @@ class PluginLoader(object):
                     else:
                         pass
 
-                if p_entry in cls.plugin_loops and cls.plugin_loops[p_entry] is not None:
+            def _run_loop():
+                while p_entry in cls.plugin_loops and cls.plugin_loops[p_entry] is not None:
                     _run_pipeline(idx=cls.plugin_loops[p_entry])
 
-            cls.pool.apply_async(_run_pipeline())
+            _run_pipeline()
+            _process = multiprocessing.Process(target=lambda: cls.pool.apply_async(_run_loop()))
+            _process.daemon = True
+            _process.start()
+            __pids.append(_process.pid)
+
+        import signal
+        signal.signal(signal.SIGTERM, kill_process)
 
         globals().clear()
         globals().update(cls.globals)
@@ -602,8 +625,7 @@ class PluginLoaderV1(PluginLoader):
                     if _o == 'align':
                         continue
                     else:
-                        getattr(cls.plugin_config, n)[_o] = p.get(
-                            _pipe_name, _o)
+                        getattr(cls.plugin_config, n)[_o] = p.get(_pipe_name, _o)
 
                 _aligns = p.get(_pipe_name, 'align').split(' ')
                 for _i, _n in enumerate(_aligns):
