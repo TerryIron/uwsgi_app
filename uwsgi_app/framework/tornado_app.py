@@ -18,13 +18,12 @@
 #
 
 import time
+import datetime
 import tornado.gen
 import tornado.ioloop
 import tornado.wsgi
 import tornado.web
 from tornado.ioloop import IOLoop
-from gevent.monkey import patch_all
-patch_all()
 from functools import wraps
 
 from uwsgi_app.config import modprobe
@@ -43,7 +42,7 @@ _ROUTE = {}
 
 @tornado.gen.coroutine
 def async_sleep(seconds):
-    yield gen.Task(IOLoop.instance().add_timeout, time.time() + seconds)
+    yield tornado.gen.Task(IOLoop.instance().add_timeout, time.time() + seconds)
 
 
 def call_later(delay=0):
