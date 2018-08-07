@@ -21,8 +21,8 @@ import tornado.web
 from tornado.concurrent import run_on_executor
 from concurrent.futures import ThreadPoolExecutor
 
-from uwsgi_app.config import get_config, confinit, confprobe, modprobe, classprobe, GLOBAL_CONFIG
-from uwsgi_app.framework.tornado_app import call_later, call_event, async_sleep
+from uwsgi_app.config import confprobe, classprobe
+from uwsgi_app.framework.tornado_app import call_later
 from uwsgi_app.plugins.loader import PluginLoaderV1
 
 
@@ -32,10 +32,11 @@ class PluginLoaderV1(tornado.web.RequestHandler, PluginLoaderV1):
 
     @classmethod
     @call_later(2)
+    @run_on_executor
     def start(cls):
         cls.start_plugins()
 
     @classmethod
-    def load_plugins(cls):
+    def load_plugins(cls, plugin_path):
         c = confprobe()
         cls.load_plugins_from_config(c)

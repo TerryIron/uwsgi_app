@@ -76,9 +76,9 @@ class PluginLoader(object):
                 return LOG_COLORS.get(level_name, '%s') % msg
 
         class Logger(logging.Logger):
-            def __init__(self, name, level=logging.NOTSET):
+            def __init__(self, namespace, level=logging.NOTSET):
                 self.logger = None
-                logging.Logger.__init__(self, name, level=level)
+                logging.Logger.__init__(self, namespace, level=level)
 
             def _log(self, level, msg, args, exc_info=None, extra=None):
                 if not self.logger:
@@ -106,8 +106,8 @@ class PluginLoader(object):
                 _h.setFormatter(logging.Formatter(LOGGER_FORMAT))
                 self.addHandler(_h)
 
-        def get_logger(name):
-            logger = Logger(name)
+        def get_logger(_name):
+            logger = Logger(_name)
             return logger
 
         return get_logger(name)
@@ -244,10 +244,9 @@ class PluginLoader(object):
 
     @classmethod
     def get_plugin_path(cls):
-        import os.path as op
-        _plugin_path = op.abspath(op.dirname(__file__))
+        import os.path
+        _plugin_path = os.path.abspath(os.path.dirname(__file__))
         return _plugin_path
-
 
     @classmethod
     def get_plugin_import_path(cls, name, lang='python2'):
@@ -259,16 +258,13 @@ class PluginLoader(object):
         cls.sys.path.insert(1, _lib_path)
         cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7'))
         cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7/lib-dynload'))
-        cls.sys.path.insert(1,
-                op.join(_lib_path, 'env/lib/python2.7/site-packages'))
-        cls.sys.path.insert(1,
-                op.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
+        cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7/site-packages'))
+        cls.sys.path.insert(1, op.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
         cls.sys.path.insert(1, '/usr/lib/python2.7')
         return cls.sys
 
     @classmethod
     def _plugin_environ(cls, name, entry):
-        _plugin_path = cls.get_plugin_path()
         _lib_path = cls.get_plugin_import_path(name)
         _env = {}
         # basic plugin environ
@@ -329,39 +325,46 @@ class PluginLoader(object):
             env['__runner__'] = False
 
             exec (
-                'if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, types.GeneratorType): __result__.{0}, __runner__ = {1}({2}, **(__result__.{0} or dict(data=dict()))), True'.format(pipe_name, _name, '__loader__'), env)
+                'if not isinstance({1}, types.GeneratorType) and '
+                'not isinstance(__result__.{0}, types.GeneratorType): '
+                '__result__.{0}, __runner__ = {1}({2}, '
+                '**(__result__.{0} or dict(data=dict()))), True'.format(pipe_name, _name, '__loader__'), env)
             exec ('if __runner__: __call__ = {0}'.format(_name), env)
 
             env['__runner__'] = False
             try:
                 exec (
-                    'if isinstance({0}, types.GeneratorType): __runner__, __call__, __error__ = True, {0}, {1}'.
+                    'if isinstance({0}, types.GeneratorType): '
+                    '__runner__, __call__, __error__ = True, {0}, {1}'.
                     format(_name, index), env)
                 exec (
                     'if isinstance({1}, types.GeneratorType): __result__.{0} = {1}.next()'.
                     format(pipe_name, _name), env)
+            except StopIteration:
+                env['__error__'] = None
             except Exception as e:
                 cls._LOGGER.error(traceback.format_exc())
                 raise e
-            except Exception as StopIteration:
-                env['__error__'] = None
 
             if not env['__runner__']:
                 try:
                     exec (
-                        'if isinstance(__result__.{0}, types.GeneratorType): __run__, __call__, __error__ = True, __result__.{0}, {1}'.
+                        'if isinstance(__result__.{0}, types.GeneratorType): '
+                        '__run__, __call__, __error__ = True, __result__.{0}, {1}'.
                         format(pipe_name, index), env)
                     exec (
-                        'if isinstance(__result__.{0}, types.GeneratorType): __result__.{0} = __result__.{0}.next()'.
+                        'if isinstance(__result__.{0}, types.GeneratorType): '
+                        '__result__.{0} = __result__.{0}.next()'.
                         format(pipe_name), env)
+                except StopIteration:
+                    env['__error__'] = None
                 except Exception as e:
                     cls._LOGGER.error(traceback.format_exc())
                     raise e
-                except Exception as StopIteration:
-                    env['__error__'] = None
 
             exec (
-                'if isinstance(__error__, list) and not __error__: __error__ = [Exception("Result Channel:" + c + '
+                'if isinstance(__error__, list) and not __error__: __error__ = '
+                '[Exception("Result Channel:" + c + '
                 '" not found in Pipeline:" + __pipe__ + " Action:" + __action__) '
                 'for c in __channels__ if c not in __result__.{0}]'.format(
                     pipe_name), env)
@@ -372,15 +375,12 @@ class PluginLoader(object):
             _env = {}
             _env.update(env)
             _env.update(cls.globals)
-            exec (
-                'PluginLoader.plugin_generator[__plugin_module__].update(dict({0}=__call__))'.
-                format(env['__func__']), _env)
-            exec (
-                'if isinstance(__error__, int) and __pipe__ not in PluginLoader.plugin_loops: PluginLoader.plugin_loops.update(dict({0}=__error__))'.
-                format(pipe_name), _env)
-            exec (
-                'if __error__ is None and __pipe__ in PluginLoader.plugin_loops: PluginLoader.plugin_loops.update(dict({0}=__error__))'.
-                format(pipe_name), _env)
+            exec ('PluginLoader.plugin_generator[__plugin_module__].'
+                  'update(dict({0}=__call__))'.format(env['__func__']), _env)
+            exec ('if isinstance(__error__, int) and __pipe__ not in PluginLoader.plugin_loops: '
+                  'PluginLoader.plugin_loops.update(dict({0}=__error__))'.format(pipe_name), _env)
+            exec ('if __error__ is None and __pipe__ in PluginLoader.plugin_loops: '
+                  'PluginLoader.plugin_loops.update(dict({0}=__error__))'.format(pipe_name), _env)
             exec ('PluginLoader.results = __result__', _env)
 
         # cls.pool.apply_async(call_plugin_func())
@@ -452,7 +452,7 @@ class PluginLoader(object):
 
     @classmethod
     def _load_plugins(cls, plugin_path):
-        return cls.load_plugins()
+        return cls.load_plugins(plugin_path)
 
     @classmethod
     def _run_plugins(cls):
@@ -519,7 +519,8 @@ class PluginLoaderV1(PluginLoader):
                                                     'requirements.txt')
 
                     _repo = 'https://pypi.douban.com/simple/'
-                    _cmd = 'cd {} && virtualenv env --no-site-packages &&. env/bin/activate && pip install -r {} -i {} && cd -'
+                    _cmd = 'cd {} && virtualenv env --no-site-packages ' \
+                           '&&. env/bin/activate && pip install -r {} -i {} && cd -'
                     commands.getoutput(
                         _cmd.format(_plugin_home, app_requirements, _repo))
                 else:
@@ -587,10 +588,9 @@ class PluginLoaderV1(PluginLoader):
                     if _o == 'align':
                         continue
                     else:
-                        getattr(cls.plugin_config, pipe_name)[_o] = p.get(
-                            _pipe_name, _o)
+                        getattr(cls.plugin_config, pipe_name)[_o] = p.get(pipe_name, _o)
                 _aligns = p.get(_boardcast_name, 'align').split(' ')
-                for _i, _n in enumerate(_aligns):
+                for _ai, _n in enumerate(_aligns):
                     if _n.startswith('c:'):
                         raise Exception(
                             'Inline Channel not support, check Boardcast {}'.
@@ -628,7 +628,7 @@ class PluginLoaderV1(PluginLoader):
                         getattr(cls.plugin_config, n)[_o] = p.get(_pipe_name, _o)
 
                 _aligns = p.get(_pipe_name, 'align').split(' ')
-                for _i, _n in enumerate(_aligns):
+                for _ai, _n in enumerate(_aligns):
                     if _n.startswith('p:'):
                         config_pipeline(_n.split('p:')[1], pipe, channel)
                     elif _n.startswith('b:'):
@@ -647,8 +647,8 @@ class PluginLoaderV1(PluginLoader):
                         continue
                     else:
                         if len(pipe) > 0 and isinstance(pipe[0], list):
-                            for _i in range(len(pipe)):
-                                pipe[_i].append(_n)
+                            for _pi in range(len(pipe)):
+                                pipe[_pi].append(_n)
                         else:
                             pipe.append(_n)
                     try:
@@ -665,8 +665,8 @@ class PluginLoaderV1(PluginLoader):
                         _channel_name = None
                     if _channel_name:
                         if len(channel) > 0 and isinstance(channel[0], list):
-                            for _i in range(len(channel)):
-                                channel[_i].append(_channel_name)
+                            for _ci in range(len(channel)):
+                                channel[_ci].append(_channel_name)
                         else:
                             channel.append(_channel_name)
 
