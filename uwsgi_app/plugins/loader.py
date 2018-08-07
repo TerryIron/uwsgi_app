@@ -652,7 +652,7 @@ class PluginLoaderV1(PluginLoader):
                         else:
                             pipe.append(_n)
                     try:
-                        _align_channel = _aligns[_i + 1]
+                        _align_channel = _aligns[_ai + 1]
                         if _align_channel.startswith('c:'):
                             _channel_name = _align_channel.split('c:')[1]
                             if _channel_name not in cls.result_channel:
