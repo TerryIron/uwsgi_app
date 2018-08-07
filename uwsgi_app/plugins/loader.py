@@ -554,7 +554,9 @@ class PluginLoaderV1(PluginLoader):
                         _mod = __import__(_callable_mods, _globals, locals(),
                                           _callable_mod)
                         _callable = getattr(_mod, _callable_name)
-                    except AttributeError as e:
+                    except Exception as e:
+                        import traceback
+                        cls._LOGGER.error(traceback.format_exc())
                         raise Exception(
                             'App:{} inline function:{} {} not found'.format(
                                 app_name, k, v))
@@ -661,7 +663,8 @@ class PluginLoaderV1(PluginLoader):
                                     format(n))
                         else:
                             _channel_name = 'data'
-                    except:
+                    except Exception as e:
+                        cls._LOGGER.error(e)
                         _channel_name = None
                     if _channel_name:
                         if len(channel) > 0 and isinstance(channel[0], list):
