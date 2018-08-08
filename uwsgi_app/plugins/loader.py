@@ -255,12 +255,12 @@ class PluginLoader(object):
         _lib_path = cls.__plug_libpath__.get(name, op.join(_plugin_path, name))
         reload(cls.sys)
         cls.sys.path = ['', _plugin_path]
-        cls.sys.path.insert(1, _lib_path)
-        cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7'))
+        cls.sys.path.insert(1, '/usr/lib/python2.7')
         cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7/lib-dynload'))
         cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7/site-packages'))
         cls.sys.path.insert(1, op.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
-        cls.sys.path.insert(1, '/usr/lib/python2.7')
+        cls.sys.path.insert(1, op.join(_lib_path, 'env/lib/python2.7'))
+        cls.sys.path.insert(1, _lib_path)
         return cls.sys
 
     @classmethod
@@ -462,8 +462,29 @@ class PluginLoader(object):
     def start_plugins(cls):
         cls._LOGGER = cls.get_logger(__name__)
         _path = cls.init_plugins()
-        cls._load_plugins(_path)
-        cls._run_plugins()
+        __pids = []
+
+        def kill_pid(pid):
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+
+        def kill_process(*args, **kwargs):
+            for _pid in __pids:
+                kill_pid(_pid)
+
+        def _start_plugins():
+            cls._load_plugins(_path)
+            cls._run_plugins()
+
+        from multiprocessing import Process
+        p = Process(target=_start_plugins)
+        p.daemon = True
+        p.start()
+
+        import signal
+        signal.signal(signal.SIGTERM, kill_process)
 
 
 class PluginLoaderV1(PluginLoader):
@@ -664,7 +685,6 @@ class PluginLoaderV1(PluginLoader):
                         else:
                             _channel_name = 'data'
                     except Exception as e:
-                        cls._LOGGER.error(e)
                         _channel_name = None
                     if _channel_name:
                         if len(channel) > 0 and isinstance(channel[0], list):

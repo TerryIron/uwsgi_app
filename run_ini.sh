@@ -10,4 +10,10 @@ CONFIG=$1
     }
 }
 
-python puwsgi run --server-port 6543 --server-host 0.0.0.0 --config ${CONFIG}
+framework=$(cat $CONFIG | grep "application.framework")
+[ "$(echo $framework | grep tornado)" != "" ] && {
+    framework="tornado"
+} || {
+    framework="flask"
+}
+python puwsgi run --framework $framework --server-port 6543 --server-host 0.0.0.0 --config ${CONFIG}

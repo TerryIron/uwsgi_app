@@ -28,7 +28,6 @@ from functools import wraps
 
 from uwsgi_app.config import modprobe
 from uwsgi_app.settings import settings as config
-import uwsgi_app.models as init_models
 
 _host = config.get('server_host', 'localhost')
 _host = str(_host)
@@ -92,6 +91,7 @@ tornado.web.RequestHandler.initialize = initialize
 class Application(tornado.web.Application):
     def __init__(self, *handlers, **settings):
         _session_settings = {
+            'debug': True,
             'driver': 'memory',
             'driver_settings': dict(host=self),
             'force_persistence': True,
@@ -111,7 +111,6 @@ def make_app(route=None):
 
 
 def init(config, **settings):
-    init_models.includeme(config)
 
     class _Application(Application):
         def __init__(self, *handlers, **settings):
@@ -137,9 +136,3 @@ def make_route(**routes):
 
 def application():
     return tornado.wsgi.WSGIAdapter(make_app())
-
-
-if __name__ == "__main__":
-    app = make_app()
-    app.listen(_port, _host)
-    tornado.ioloop.IOLoop.current().start()

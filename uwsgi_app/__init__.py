@@ -22,6 +22,8 @@ __version__ = (0, 1, 0)
 import os.path
 
 from uwsgi_app.config import get_config, confinit, confprobe, modprobe
+from uwsgi_app.routes import get_routes
+import uwsgi_app.models as init_models
 
 
 class Config(object):
@@ -49,16 +51,19 @@ def init_loader(c,
                 opt_init='application.init'):
     _c = c.settings
     _framework = _c.get(opt_frame, default_framework)
-    _module = modprobe(__name__ + '.' + _framework)
+    _module_app = modprobe(__name__ + '.' + _framework + '_app')
+    _module_plugin = modprobe(__name__ + '.' + _framework + '_plugin')
 
     _init = _c.get(opt_init, default_init)
-    getattr(_module, _init)(c, **settings)
+    getattr(_module_app, _init)(c, **settings)
     _route = _c.get(opt_route, default_route)
-    from uwsgi_app.routes import get_routes
-    getattr(_module, _route)(**get_routes())
+    _routes = get_routes()
+    _plugin = getattr(_module_plugin, 'PluginLoaderV1')
+    _routes['/_PluginLoaderV1'] = _plugin
+    getattr(_module_app, _route)(**_routes)
 
     _callable = _c.get(opt_callable, default_callable)
-    _application = getattr(_module, _callable)
+    _application = getattr(_module_app, _callable)
     setattr(c, 'application', _application)
 
     return _application
@@ -75,6 +80,7 @@ def main(global_config, **settings):
     confinit(**global_config)
     config = Config()
     setattr(config, 'settings', get_config(confprobe()))
+    init_models.includeme(config)
     application = init_loader(config, global_config, settings)
 
     return application() if callable(application) else application

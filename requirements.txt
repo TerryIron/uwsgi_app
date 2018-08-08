@@ -19,7 +19,11 @@ pycrypto
 beautifulsoup4
 gevent
 pastedeploy
+flask
+flask-restful
+mysql-python
 tornado==4.5.3
+futures
 tornado-redis
 tornado-celery
 torndsession
@@ -34,3 +38,5 @@ impyla
 #selenium
 #python-redmine
 #python-gitlab
+protobuf
+paho-mqtt
