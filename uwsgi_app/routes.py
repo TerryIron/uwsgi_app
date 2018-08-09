@@ -17,10 +17,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-from uwsgi_app.views import test as views
-
 
 def get_routes():
     _routes = {}
-    _routes['/'] = views.MainHandler
     return _routes

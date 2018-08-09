@@ -42,7 +42,16 @@ def make_app(route=None):
     app = Flask(__name__)
     api = Api(app)
     for name, target in _target_route: 
-        api.add_resource(target(), name, endpoint=str(target))
+        if hasattr(target, 'func_closure') and \
+            hasattr(target, 'func_defaults') and \
+            hasattr(target, 'func_dict') and \
+            hasattr(target, 'func_doc') and \
+            hasattr(target, 'func_globals') and \
+            hasattr(target, 'func_name'):
+            t = target()
+        else:
+            t = target
+        api.add_resource(t, name, endpoint=str(target))
     return app
 
 
