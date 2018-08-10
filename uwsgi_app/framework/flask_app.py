@@ -19,9 +19,8 @@
 
 import time
 import datetime
-from flask import Flask
-from flask_restful import Resource, Api
-from gevent import pywsgi
+import flask_restful 
+from flask import Flask, request
 
 from uwsgi_app.config import modprobe
 from uwsgi_app.settings import settings as config
@@ -35,38 +34,72 @@ _routes = _routes if _routes else []
 
 
 _ROUTE = {}
+_APP = None
+
+
+def _check_is_view(t):
+    if hasattr(t, 'func_closure') and \
+        hasattr(t, 'func_defaults') and \
+        hasattr(t, 'func_dict') and \
+        hasattr(t, 'func_doc') and \
+        hasattr(t, 'func_globals') and \
+            hasattr(t, 'func_name'):
+        return True
+    else:
+        return False
 
 
 def make_app(route=None):
     _target_route = route if route else _ROUTE
-    app = Flask(__name__)
-    api = Api(app)
+    api = flask_restful.Api(_APP)
     for name, target in _target_route: 
-        if hasattr(target, 'func_closure') and \
-            hasattr(target, 'func_defaults') and \
-            hasattr(target, 'func_dict') and \
-            hasattr(target, 'func_doc') and \
-            hasattr(target, 'func_globals') and \
-            hasattr(target, 'func_name'):
+        if _check_is_view(target):
             t = target()
         else:
             t = target
         api.add_resource(t, name, endpoint=str(target))
-    return app
+    return _APP
 
 
 def init(config, **settings):
-    pass
+    from flask.globals import _request_ctx_stack
+
+    def _add_property(s):
+        for k, v in config.property.items():
+            if callable(v):
+                setattr(s, k, v())
+            else:
+                setattr(s, k, v)
+
+    class _Flask(Flask):
+        def dispatch_request(self):
+            req = _request_ctx_stack.top.request
+            if req.routing_exception is not None:
+                self.raise_routing_exception(req)
+            rule = req.url_rule
+
+            if getattr(rule, 'provide_automatic_options', False) \
+               and req.method == 'OPTIONS':
+                return self.make_default_options_response()
+
+            _add_property(req)
+            ret = self.view_functions[rule.endpoint](**req.view_args)
+            return ret
+             
+    app = _Flask(__name__)
+
+    global _APP
+    _APP = app
 
 
 def make_route(**routes):
-    global _ROUTE
     _target_routes = routes
     if not _target_routes:
         _target_routes = [(r'{0}'.format(i), modprobe(j)) for i, j in _routes]
     else:
         _target_routes = [(r'{0}'.format(i), j)
                           for i, j in _target_routes.items()]
+    global _ROUTE
     _ROUTE = _target_routes
     return _ROUTE
 

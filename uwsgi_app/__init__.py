@@ -52,12 +52,12 @@ def init_loader(c,
     _c = c.settings
     _framework = _c.get(opt_frame, default_framework)
     _module_app = modprobe(__name__ + '.' + _framework + '_app')
-    _module_plugin = modprobe(__name__ + '.' + _framework + '_plugin')
 
     _init = _c.get(opt_init, default_init)
     getattr(_module_app, _init)(c, **settings)
     _route = _c.get(opt_route, default_route)
     _routes = get_routes()
+    _module_plugin = modprobe(__name__ + '.' + _framework + '_plugin')
     _plugin = getattr(_module_plugin, 'PluginLoaderV1')
     _routes['/_PluginLoaderV1'] = _plugin
     getattr(_module_app, _route)(**_routes)
