@@ -233,9 +233,6 @@ def get_sqlserver_engine(url):
         _port = int(_port.split(';')[0])
     else:
         _port = 1433
-    logger.info('host:{0}, port:{1}, database:{2}'.format(
-        _host, _port, _database))
-    logger.info('user:{0}, password:{1}'.format(_username, _password))
     conn = pymssql.connect(
         host=_host,
         port=_port,
@@ -328,14 +325,19 @@ def includeme(config):
 
     """
 
-    settings = config.settings
+    try:
+        settings = config.settings
+    except BaseException:
+        settings = config.get_settings()
     engine = get_engine(settings=settings)
     session_factory = get_session_factory(engine=engine)
     create_tables(engine=engine, settings=settings)
     config.registry['dbsession_factory'] = session_factory
 
+    def _call(x=None):
+        return get_tm_session(session_factory, transaction.manager)
+
     config.add_request_method(
         # r.tm is the transaction manager used by pyramid_tm
-        lambda: get_tm_session(session_factory, transaction._manager),
-        'dbsession',
+        _call, 'dbsession',
         reify=True)
