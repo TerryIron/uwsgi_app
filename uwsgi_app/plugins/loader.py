@@ -148,7 +148,7 @@ class PluginLoader(object):
     plugin_runner_config = Config()
     plugin_loader = Loader()
     results = Result()
-    result_channel = ('data', 'result')
+    result_channel = ('data', 'result', 'config')
 
     globals = {}
     paths = []
@@ -170,7 +170,7 @@ class PluginLoader(object):
 
     @classmethod
     def import_plugin(cls, name):
-        _name = 'plugin_' + str(name)
+        _name = str(name)
         return cls.__plug_globals__[
             _name] if _name in cls.__plug_globals__ else None
 
@@ -314,7 +314,7 @@ class PluginLoader(object):
             env = cls._plugin_environ(_name, _real_func)
             # call plugin function
             d = getattr(cls.plugin_loader, pipe_name)
-            setattr(d, 'channel_scope', ('data', 'result'))
+            setattr(d, 'channel_scope', cls.result_channel)
             setattr(d, 'channel', channel)
             setattr(d, 'logger', cls.get_logger('.'.join([pipe_name, _name])))
             env['__loader__'] = d
@@ -332,7 +332,9 @@ class PluginLoader(object):
                 'if not isinstance({1}, types.GeneratorType) and '
                 'not isinstance(__result__.{0}, types.GeneratorType): '
                 '__result__.{0}, __runner__ = {1}({2}, '
-                '**(__result__.{0} or dict(data=dict()))), True'.format(pipe_name, _name, '__loader__'), env)
+                '**(__result__.{0} or '
+                'dict(data=dict(), result=dict(), config=dict()))), True'.format(
+                    pipe_name, _name, '__loader__'), env)
             exec ('if __runner__: __call__ = {0}'.format(_name), env)
 
             env['__runner__'] = False
@@ -664,7 +666,7 @@ class PluginLoaderV1(PluginLoader):
                         _align_channel = _aligns[_ai + 1]
                         if _align_channel.startswith('c:'):
                             _channel_name = _align_channel.split('c:')[1]
-                            if _channel_name not in cls.result_channel:
+                            if _channel_name not in cls.result_channel[0:2]:
                                 raise Exception(
                                     'Inline channel type not support, check Pipeline {}'.
                                     format(n))
