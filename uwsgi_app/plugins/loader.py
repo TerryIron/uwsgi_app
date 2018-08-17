@@ -288,7 +288,7 @@ class PluginLoader(object):
         _env['__call__'] = None
         _env['__error__'] = []
         _env['__result__'] = cls.results
-        _env['__channels__'] = cls.result_channel
+        _env['__channels__'] = cls.result_channel[0:2]
         globals().clear()
         globals().update(_env)
         return _env
