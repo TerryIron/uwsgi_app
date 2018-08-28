@@ -148,7 +148,8 @@ class PluginLoader(object):
     plugin_runner_config = Config()
     plugin_loader = Loader()
     results = Result()
-    result_channel = ('data', 'result', 'config')
+    config_channel = 'config'
+    result_channel = tuple(['data', 'result'] + [config_channel])
 
     globals = {}
     paths = []
@@ -315,7 +316,8 @@ class PluginLoader(object):
             # call plugin function
             d = getattr(cls.plugin_loader, pipe_name)
             setattr(d, 'channel_scope', cls.result_channel)
-            setattr(d, 'channel', channel)
+            setattr(d, 'config_channel', cls.config_channel)
+            setattr(d, 'current_channel', channel)
             setattr(d, 'logger', cls.get_logger('.'.join([pipe_name, _name])))
             env['__loader__'] = d
 
