@@ -22,6 +22,7 @@ from sqlalchemy import engine_from_config, create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import configure_mappers
 import zope.sqlalchemy
+from zope.sqlalchemy import ZopeTransactionExtension
 import transaction
 import urlparse
 import pymongo
@@ -204,7 +205,7 @@ def get_sqlalchemy_engine(url):
     :return:
     """
 
-    return Engine(sessionmaker(bind=create_engine(url)), 'sqlalchemy')
+    return Engine(sessionmaker(bind=create_engine(url), extension=ZopeTransactionExtension()), 'sqlalchemy')
 
 
 def get_sqlserver_engine(url):
