@@ -319,6 +319,7 @@ class PluginLoader(object):
             setattr(d, 'config_channel', cls.config_channel)
             setattr(d, 'current_channel', channel)
             setattr(d, 'logger', cls.get_logger('.'.join([pipe_name, _name])))
+            setattr(d, 'logger_name', '.'.join([pipe_name, _name]))
             env['__loader__'] = d
 
             env['__pipe__'] = pipe_name
