@@ -95,13 +95,14 @@ class Engine(object):
     数据引擎代理
     """
 
-    def __init__(self, engine, name=''):
+    def __init__(self, s, name='', engine=None):
         """
         数据引擎初始化
         :param engine: 数据引擎工厂函数入口
         :param name: 数据引擎名称
         """
 
+        self._session = s
         self._engine = engine
         self.name = name
 
@@ -113,6 +114,20 @@ class Engine(object):
         """
 
         return self._engine
+
+    @property
+    def session(self):
+        """
+        数据引擎会话/连接
+        :return:
+        """
+
+        _instance = self._session if not callable(
+            self._session) else self._session()
+        if hasattr(_instance, 'open') and callable(getattr(_instance, 'open')):
+            _instance.open()
+        return _instance
+
 
     @property
     def engine(self):
@@ -133,9 +148,10 @@ class EngineFactory(object):
     数据引擎工厂类
     """
 
-    def __init__(self, factory, name=''):
+    def __init__(self, factory, name='', engine=None):
         self.factory = factory
         self.name = name
+        self.engine = engine
 
 
 class Table(object):
@@ -210,7 +226,8 @@ def get_sqlalchemy_engine(url):
     :return:
     """
 
-    return Engine(sessionmaker(bind=create_engine(url), extension=ZopeTransactionExtension()), 'sqlalchemy')
+    _engine = create_engine(url)
+    return Engine(sessionmaker(bind=_engine, extension=ZopeTransactionExtension()), 'sqlalchemy', _engine)
 
 
 def get_sqlserver_engine(url):
@@ -271,14 +288,14 @@ def create_tables(engine, mod=None):
 
     if engine.name == 'hbase':
         mod_instances = get_mod_tables(mod)
-        _tables = engine.engine.tables()
+        _tables = engine.session.tables()
         for m in mod_instances:
             if m.name not in _tables:
                 family = {}
                 for c in m.columns:
                     if c not in family:
                         family[c] = {}
-                engine.engine.create_table(m.name, family)
+                engine.session.create_table(m.name, family)
     else:
         Base.metadata.create_all(engine.engine)
 
@@ -307,11 +324,11 @@ def get_session_factory(engine):
     """
 
     if engine.name == 'hbase':
-        return EngineFactory(engine.engine_factory, engine.name)
+        return EngineFactory(engine.session_factory, engine.name)
     else:
         factory = sessionmaker()
-        factory.configure(bind=engine.engine)
-        return EngineFactory(factory, engine.name)
+        factory.configure(bind=engine.session)
+        return EngineFactory(factory, engine.name, engine.engine)
 
 
 def get_tm_session(session_factory, transaction_manager):
@@ -343,4 +360,3 @@ def get_tm_session(session_factory, transaction_manager):
         zope.sqlalchemy.register(
             dbsession, transaction_manager=transaction_manager)
         return dbsession
-
