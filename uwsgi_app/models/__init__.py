@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# coding=utf-8
-
+# -*- coding: utf-8 -*-
 #
 # Copyright (c) 2015-2018  Terry Xi
 # All Rights Reserved.
@@ -17,6 +16,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
 
 from sqlalchemy import engine_from_config, create_engine
 from sqlalchemy.orm import sessionmaker
@@ -164,7 +164,7 @@ class Table(object):
         ]
 
 
-def get_engine(settings, prefix='sql.'):
+def _get_engine(settings, prefix='sql.'):
     """
     生成数据引擎代理实例
     :param settings: 配置表
@@ -178,6 +178,20 @@ def get_engine(settings, prefix='sql.'):
     else:
         settings['pool_recycle'] = 7200
         return Engine(engine_from_config(settings, prefix), 'sqlalchemy')
+
+
+def get_engine(url):
+    """
+    生成数据引擎代理实例
+    :param url: 数据库地址
+    :return:
+    """
+    if url.startswith('hbase:'):
+        return get_hbase_engine(url)
+    elif url.startswith('sqlserver:'):
+        return get_sqlserver_engine(url)
+    else:
+        return get_sqlalchemy_engine(url)
 
 
 def get_hbase_engine(url):
@@ -302,7 +316,7 @@ def get_tm_session(session_factory, transaction_manager):
 
           import transaction
 
-          engine = get_engine(settings)
+          engine = _get_engine(settings)
           session_factory = get_session_factory(engine)
           with transaction.manager:
               dbsession = get_tm_session(session_factory, transaction.manager)
@@ -328,14 +342,14 @@ def includeme(config):
 
     try:
         settings = config.settings
-    except BaseException:
+    except:
         settings = config.get_settings()
-    engine = get_engine(settings=settings)
+    engine = _get_engine(settings=settings)
     session_factory = get_session_factory(engine=engine)
     create_tables(engine=engine, settings=settings)
     config.registry['dbsession_factory'] = session_factory
 
-    def _call(x=None):
+    def _call(**kwargs):
         return get_tm_session(session_factory, transaction.manager)
 
     config.add_request_method(
