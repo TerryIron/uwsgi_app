@@ -87,18 +87,7 @@ def _parse_create_tables(engine, mod):
     """
 
     mod = __import__(mod, globals(), locals(), mod.split('.')[-1])
-    if engine.name == 'hbase':
-        mod_instances = get_mod_tables(mod)
-        _tables = engine.engine.tables()
-        for m in mod_instances:
-            if m.name not in _tables:
-                family = {}
-                for c in m.columns:
-                    if c not in family:
-                        family[c] = {}
-                engine.engine.create_table(m.name, family)
-    else:
-        Base.metadata.create_all(engine.engine)
+    create_tables(engine, mod)
 
 
 class Engine(object):
@@ -272,7 +261,29 @@ def get_mongodb_engine(url):
     return Engine(lambda: pymongo.MongoClient(url)[_db][_table], 'mongodb')
 
 
-def create_tables(engine, settings, prefix='model.'):
+def create_tables(engine, mod=None):
+    """
+    创建数据引擎中模型, 最好先导入模型模块
+    :param engine: 数据引擎代理
+    :param mod: 指定模块支持第三方
+    :return:
+    """
+
+    if engine.name == 'hbase':
+        mod_instances = get_mod_tables(mod)
+        _tables = engine.engine.tables()
+        for m in mod_instances:
+            if m.name not in _tables:
+                family = {}
+                for c in m.columns:
+                    if c not in family:
+                        family[c] = {}
+                engine.engine.create_table(m.name, family)
+    else:
+        Base.metadata.create_all(engine.engine)
+
+
+def _create_tables(engine, settings, prefix='model.'):
     """
     创建数据引擎中模型, 最好先导入模型模块
     :param engine: 数据引擎代理
@@ -332,3 +343,4 @@ def get_tm_session(session_factory, transaction_manager):
         zope.sqlalchemy.register(
             dbsession, transaction_manager=transaction_manager)
         return dbsession
+
