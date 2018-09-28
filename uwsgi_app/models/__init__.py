@@ -39,7 +39,7 @@ configure_mappers()
 
 __all__ = [
     'Engine', 'EngineFactory', 'Table', 'get_engine', 'get_sqlalchemy_engine',
-    'get_hbase_engine', 'get_mongo_engine', 'get_sqlserver_engine',
+    'get_hbase_engine', 'get_mongodb_engine', 'get_sqlserver_engine',
     'create_tables', 'get_session_factory', 'get_tm_session', 'get_mod_tables'
 ]
 
@@ -188,6 +188,8 @@ def get_engine(url):
     """
     if url.startswith('hbase:'):
         return get_hbase_engine(url)
+    elif url.startswith('mongodb:'):
+        return get_mongodb_engine(url)
     elif url.startswith('sqlserver:'):
         return get_sqlserver_engine(url)
     else:
@@ -258,7 +260,7 @@ def get_sqlserver_engine(url):
     return Engine(lambda: conn.cursor(as_dict=True), 'sqlserver')
 
 
-def get_mongo_engine(url):
+def get_mongodb_engine(url):
     """
     获取mongodb数据引擎
     :param url: 数据库地址
@@ -267,7 +269,7 @@ def get_mongo_engine(url):
 
     _p = urlparse.urlparse(url)
     _db, _table = _p.path.lstrip('/').split('.')
-    return Engine(lambda: pymongo.MongoClient(url)[_db][_table], 'mongo')
+    return Engine(lambda: pymongo.MongoClient(url)[_db][_table], 'mongodb')
 
 
 def create_tables(engine, settings, prefix='model.'):
