@@ -18,6 +18,9 @@
 #
 
 
+__version__ = (0, 1, 0)
+
+
 class PluginLoader(object):
     @classmethod
     def get_logger(cls, name):
