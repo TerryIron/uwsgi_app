@@ -372,7 +372,7 @@ class PluginLoader(object):
                     raise e
 
             exec (
-                'if isinstance(__error__, list) and not __error__: __error__ = '
+                'if isinstance(__error__, list) and not __error__ and __result__.{0}: __error__ = '
                 '[Exception("Result Channel:" + c + '
                 '" not found in Pipeline:" + __pipe__ + " Action:" + __action__) '
                 'for c in __channels__ if c not in __result__.{0}]'.format(
