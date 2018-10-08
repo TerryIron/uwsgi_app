@@ -182,7 +182,8 @@ def _get_engine(settings, prefix='sql.'):
         return get_hbase_engine(value)
     else:
         settings['pool_recycle'] = 7200
-        return Engine(engine_from_config(settings, prefix), 'sqlalchemy')
+        _engine = engine_from_config(settings, prefix)
+        return Engine(sessionmaker(_engine), 'sqlalchemy', _engine)
 
 
 def get_engine(url):
