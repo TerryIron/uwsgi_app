@@ -360,3 +360,29 @@ def get_tm_session(session_factory, transaction_manager):
         zope.sqlalchemy.register(
             dbsession, transaction_manager=transaction_manager)
         return dbsession
+
+
+def includeme(config):
+    """
+    Initialize the model for an application.
+
+    Activate this setup using ``config.include('PROJECT.models')``.
+
+    """
+
+    try:
+        settings = config.settings
+    except:
+        settings = config.get_settings()
+    engine = _get_engine(settings=settings)
+    session_factory = get_session_factory(engine=engine)
+    _create_tables(engine=engine, settings=settings)
+    config.registry['dbsession_factory'] = session_factory
+
+    def _call(**kwargs):
+        return get_tm_session(session_factory, transaction.manager)
+
+    config.add_request_method(
+        # r.tm is the transaction manager used by pyramid_tm
+        _call, 'dbsession',
+        reify=True)
