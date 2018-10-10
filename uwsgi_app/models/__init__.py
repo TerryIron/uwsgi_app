@@ -126,6 +126,13 @@ class Engine(object):
             self._session) else self._session()
         if hasattr(_instance, 'open') and callable(getattr(_instance, 'open')):
             _instance.open()
+
+        import transaction
+
+        def _commit(*args, **kwargs):
+            transaction.commit()
+
+        _instance.commit = _commit
         return _instance
 
 
