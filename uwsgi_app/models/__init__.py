@@ -305,7 +305,10 @@ def create_tables(engine, mod=None):
                         family[c] = {}
                 engine.session.create_table(m.name, family)
     else:
-        Base.metadata.create_all(engine.engine)
+        if mod and hasattr(mod, 'Base'):
+            getattr(mod, 'Base').metadata.create_all(engine.engine)
+        else:
+            Base.metadata.create_all(engine.engine)
 
 
 def _create_tables(engine, settings, prefix='model.'):
