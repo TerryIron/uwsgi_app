@@ -56,3 +56,14 @@ class _BaseMixin(BaseMixin):
 
 
 Base = declarative_base(metadata=metadata, cls=_BaseMixin)
+
+
+def MetaInit():
+    _metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    return _metadata
+
+
+def BaseInit():
+    _base = declarative_base(metadata=MetaInit(), cls=_BaseMixin)
+    return _base
+
