@@ -18,7 +18,7 @@
 #
 
 
-from uwsgi.routes import test
+from uwsgi_app.routes import test
 
 
 def get_routes():
