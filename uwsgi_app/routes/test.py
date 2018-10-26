@@ -18,6 +18,15 @@
 #
 
 
-def get_routes():
-    _routes = {}
-    return _routes
+from uwsgi_app.core import with_version
+from uwsgi_app.views.test import MainHandler
+
+
+def update_routes(routes):
+
+    # -- API版本 --
+    _version = '1.0'
+    
+   _prefix = '/'.join([_version])
+
+   routes[with_version(_prefix, 'test')] = MainHandler
