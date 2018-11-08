@@ -2,6 +2,11 @@
 
 PWD=$(pwd)
 CONFIG=$1
+PORT=$2
+
+[ "$PORT"  == "" ] && {
+    PORT=6543
+}
 
 [ "$CONFIG"  == "" ] && {
     CONFIG="$PWD/production.ini"
@@ -26,4 +31,4 @@ for i in $(find | grep setup.py$); do
 done
 
 cd $PWD
-python puwsgi run --framework $framework --server-port 6543 --server-host 0.0.0.0 --config ${CONFIG}
+python puwsgi run --framework $framework --server-port $PORT --server-host 0.0.0.0 --config ${CONFIG}
