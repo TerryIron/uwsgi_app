@@ -223,8 +223,9 @@ def filter_session(autoremove):
 
             ret = func(request, **kwargs)
             if autoremove:
-                if hasattr(request, 'request'):
-                    request = getattr(request, 'request')
+                if not hasattr(request, 'dbsession'):
+                    if hasattr(request, 'request'):
+                        request = getattr(request, 'request')
                 if hasattr(request, 'dbsession'):
                     _session = getattr(request, 'dbsession')
                     from zope.sqlalchemy import mark_changed
