@@ -26,7 +26,7 @@ def update_routes(routes):
 
     # -- API版本 --
     _version = '1.0'
-    
-   _prefix = '/'.join([_version])
 
-   routes[with_version(_prefix, 'test')] = MainHandler
+    _prefix = '/'.join([_version])
+
+    routes[with_version(_prefix, '/test')] = MainHandler

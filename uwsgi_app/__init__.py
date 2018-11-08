@@ -30,6 +30,7 @@ class Config(object):
     def __init__(self):
         self.registry = {}
         self.property = {}
+        self.settings = {}
 
     def add_request_method(self, func, name, reify=True):
         if reify:
@@ -78,9 +79,9 @@ def main(global_config, **settings):
     """
 
     confinit(**global_config)
-    config = Config()
-    setattr(config, 'settings', get_config(confprobe()))
-    init_models.includeme(config)
-    application = init_loader(config, global_config, settings)
+    _config = Config()
+    setattr(_config, 'settings', get_config(confprobe()))
+    init_models.includeme(_config)
+    application = init_loader(_config, global_config, settings)
 
     return application() if callable(application) else application
