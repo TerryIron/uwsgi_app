@@ -338,7 +338,7 @@ def get_session_factory(engine):
         return EngineFactory(engine.session_factory, engine.name)
     else:
         factory = sessionmaker()
-        factory.configure(bind=engine.session)
+        factory.configure(bind=engine.engine)
         return EngineFactory(factory, engine.name, engine.engine)
 
 
