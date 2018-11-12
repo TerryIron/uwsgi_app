@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 PWD=$(pwd)
@@ -31,4 +32,6 @@ for i in $(find | grep setup.py$); do
 done
 
 cd $PWD
+export PYTHONPATH=$PWD
+python setup.py develop
 python puwsgi run --framework $framework --server-port $PORT --server-host 0.0.0.0 --config ${CONFIG}

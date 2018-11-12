@@ -17,6 +17,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+import os
 import base64
 import json
 import subprocess
@@ -107,6 +108,8 @@ class Uwsgi(VShell):
                                  help_text=u'进程数量')
         command.install_argument(['--thread-number'], 'thread_number', default='100',
                                  help_text=u'线程数量')
+        command.install_argument(['--target-path'], 'target_path', default='',
+                                 help_text=u'uwsgi应用环境地址')
         command.install_argument(['--target-file'], 'target_file', default='',
                                  help_text=u'uwsgi应用文件')
         command.install_argument(['--target-app'], 'target_app', default='',
@@ -137,6 +140,9 @@ class Uwsgi(VShell):
             _key_file = self.get_argument('key_file')
             _process_number = self.get_argument('process_number')
             _thread_number = self.get_argument('thread_number')
+            _target_path = self.get_argument('target_path')
+            if not _target_path:
+                _target_path = os.path.dirname(os.path.abspath(__file__))
             _target_file = self.get_argument('target_file')
             _target_app = self.get_argument('target_app')
             _cmd = 'uwsgi --master'
@@ -180,9 +186,14 @@ class Uwsgi(VShell):
             else:
                 _uwsgi_options = '--processes {process} --threads {thread}'.format(thread=_thread_number,
                                                                                    process=_process_number)
+            _cmd += ' --chdir'
+            _cmd += ' ' + _target_path
+            _cmd += ' --python-path'
+            _cmd += ' ' + _target_path
             _cmd += ' --thunder-lock'
             _cmd += ' ' + _uwsgi_options
             _cmd += ' --pyargv ' + base64.b64encode(json.dumps(_data))
+            print os.environ
             subprocess.call(_cmd, shell=True)
 
 if __name__ == '__main__':
