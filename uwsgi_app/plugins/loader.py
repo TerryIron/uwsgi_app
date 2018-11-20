@@ -179,6 +179,18 @@ class PluginLoader(object):
             _name] if _name in cls.__plug_globals__ else None
 
     @classmethod
+    def run_plugin(cls, name, call, **config):
+        _plugin = cls.import_plugin(name)
+        if _plugin and hasattr(_plugin, call) and callable(getattr(_plugin, call)):
+            _call = getattr(_plugin, call)
+            d = cls.Loader()
+            setattr(d, 'config', config)
+            _config = dict()
+            for i in list(cls.result_channel) + list(cls.config_channel):
+                _config[i] = dict()
+            return _call(d, **_config)
+
+    @classmethod
     def set_pipeline(cls, name, plugin_names, channel_names, idx=None):
         _new_name = name if not idx else name + str(idx)
         if _new_name not in cls.plugins:
