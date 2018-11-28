@@ -370,6 +370,7 @@ def get_tm_session(session_factory, transaction_manager):
     else:
         zope.sqlalchemy.register(
             dbsession, transaction_manager=transaction_manager)
+        setattr(dbsession, 'engine', session_factory.engine)
         return dbsession
 
 
