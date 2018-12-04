@@ -118,7 +118,7 @@ def check_request_params(arg_name,
             if not hasattr(request, out_values_param_name):
                 setattr(request, out_values_param_name, {})
             if default_value is not None:
-                _arg_value = request.params.get(
+                _arg_value = getattr(request, request_target_arg_name).get(
                     arg_name,
                     default_value()
                     if callable(default_value) else default_value)
