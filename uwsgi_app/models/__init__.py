@@ -392,6 +392,8 @@ def includeme(config):
     config.registry['dbsession_factory'] = session_factory
 
     def _call(**kwargs):
+        engine = _get_engine(settings=settings)
+        session_factory = get_session_factory(engine=engine)
         return get_tm_session(session_factory, transaction.manager)
 
     config.add_request_method(
