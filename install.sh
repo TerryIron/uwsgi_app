@@ -1,6 +1,6 @@
 #!/bin/bash
 
-apt-get install build-essential python-dev python-pip libmysqlclient-dev
+apt-get install build-essential python-dev python-pip libmysqlclient-dev virtualenv*
 virtualenv env --no-site-packages
 TORNADO=$(cat requirements.txt | grep "tornado=\|tornado$")
 [ "$TORNADO" == "" ] && {
