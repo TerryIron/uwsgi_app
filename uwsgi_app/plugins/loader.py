@@ -436,8 +436,8 @@ if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, t
         __kw__['result'] = dict()
     __kw__['data'] = tuple(__kw__['data']) if isinstance(__kw__['data'], list) else __kw__['data']
     __kw__['data'] = tuple([__kw__['data']]) if not isinstance(__kw__['data'], tuple) else __kw__['data']
-    __kw__['result'] = tuple(__kw__['result']) if isinstance(__kw__['result'], list) else __kw__['data']
-    __kw__['result'] = tuple([__kw__['result']]) if not isinstance(__kw__['result'], tuple) else __kw__['data']
+    __kw__['result'] = tuple(__kw__['result']) if isinstance(__kw__['result'], list) else __kw__['result']
+    __kw__['result'] = tuple([__kw__['result']]) if not isinstance(__kw__['result'], tuple) else __kw__['result']
     __result__.{0}, __runner__ = {1}({2}, **__kw__), True
             """
             exec(_expr.format(pipe_name, _name, '__loader__'), env)
