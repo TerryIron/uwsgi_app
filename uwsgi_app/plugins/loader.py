@@ -22,6 +22,22 @@ __version__ = (0, 1, 0)
 
 
 class PluginLoader(object):
+    import collections
+
+    class DictWrapper(collections.Mapping):
+
+        def __init__(self, **data):
+            self._data = data
+
+        def __getitem__(self, key):
+            return self._data[key]
+
+        def __len__(self):
+            return len(self._data)
+
+        def __iter__(self):
+            return iter(self._data)
+
     @classmethod
     def get_logger(cls, name):
         import logging
@@ -186,7 +202,7 @@ class PluginLoader(object):
         if _plugin and hasattr(_plugin, call) and callable(getattr(_plugin, call)):
             _call = getattr(_plugin, call)
             d = cls.Loader()
-            setattr(d, 'config', config)
+            setattr(d, 'config', cls.DictWrapper(**config))
             setattr(d, 'channel_scope', cls.result_channel)
             setattr(d, 'config_channel', cls.config_channel)
             setattr(d, 'current_channel', cls.result_channel[0])
@@ -216,7 +232,7 @@ class PluginLoader(object):
 
         setattr(cls.results, _new_name, dict())
         d = cls.Loader()
-        setattr(d, 'config', getattr(cls.plugin_runner_config, _new_name))
+        setattr(d, 'config', cls.DictWrapper(**getattr(cls.plugin_runner_config, _new_name)))
         setattr(cls.plugin_loader, _new_name, d)
 
     @classmethod
