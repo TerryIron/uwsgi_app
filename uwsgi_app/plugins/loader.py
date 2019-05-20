@@ -29,6 +29,13 @@ class PluginLoader(object):
         def __init__(self, **data):
             self._data = data
 
+        def __setattr__(self, key, value):
+            if key == '_data':
+                if not hasattr(self, key):
+                    return super(DictWrapper, self).__setattr__(key, value)
+            else:
+                return super(DictWrapper, self).__setattr__(key, value)
+
         def __getitem__(self, key):
             return self._data[key]
 
