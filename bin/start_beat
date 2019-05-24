@@ -1,0 +1,10 @@
+#!/bin/bash
+
+[ "$1" != "" ] && {
+FILE="$1"
+} || {
+FILE="$(pwd)/../development.ini"
+}
+
+rm -f celerybeat-schedule
+celery beat -l DEBUG -A pyramid_celery.celery_app --ini $FILE
