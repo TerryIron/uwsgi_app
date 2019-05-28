@@ -24,9 +24,9 @@ framework=$(cat $CONFIG | grep "application.framework")
     framework="flask"
 }
 
-for i in $(find | grep -v "^./env*\|.*env/" |grep setup.py$); do 
+for i in $(find | grep setup.py$); do 
     j=$(dirname $i); 
-    [ "$j" != "." ] && {
+    [ "$j" != "." ] && [ "$(echo $j | grep env)" == "" ] && {
         cd $j && python setup.py bdist_egg && cd -
     }
 done
@@ -34,4 +34,5 @@ done
 cd $PWD
 export PYTHONPATH=$PWD
 python setup.py develop
+export PYTHONOPTIMIZE=1
 python puwsgi run --framework $framework --server-port $PORT --server-host 0.0.0.0 --config ${CONFIG}

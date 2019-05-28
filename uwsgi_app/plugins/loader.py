@@ -291,7 +291,7 @@ class PluginLoader(object):
         cls.__plug_globals__[name] = p
 
     @classmethod
-    def reload_plugin(cls, plugin_name, plugin_action, plugin_version='0.1.0'):
+    def reload_plugin(cls, loader, plugin_name, plugin_action, plugin_version='0.1.0', **kwargs):
         import os
         import json
 
@@ -348,6 +348,7 @@ class PluginLoader(object):
             cls._LOGGER.warn('Plugin:{} action:{}, version:{}'.format(plugin_name,
                                                                       plugin_action,
                                                                       plugin_version))
+            return _callable(loader, **kwargs)
 
     @classmethod
     def init_plugins(cls, plugin_path=op.abspath(op.dirname(__file__))):
@@ -426,6 +427,7 @@ class PluginLoader(object):
 
         def call_plugin_func():
             import traceback
+            import functools
             _reg_func = cls.plugin_registry[_name][func_name]
             _loop_func = cls.plugin_generator[_name][func_name]
             _real_func = _loop_func if index > 0 and _reg_func != _loop_func else _reg_func
@@ -433,7 +435,7 @@ class PluginLoader(object):
             # call plugin function
             d = getattr(cls.plugin_loader, pipe_name)
             setattr(d, 'current_pipeline', cls.plugin_pipeline[pipe_name])
-            setattr(d, 'reload_plugin', cls.reload_plugin)
+            setattr(d, 'reload_plugin', functools.partial(cls.reload_plugin, d))
             setattr(d, 'channel_scope', cls.result_channel)
             setattr(d, 'config_channel', cls.config_channel)
             setattr(d, 'current_channel', channel)
@@ -485,6 +487,11 @@ if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, t
 
             if not env['__runner__']:
                 try:
+                    _expr_env = """
+import os
+os.environ['PYTHONOPTIMIZE'] = '1'
+                    """
+                    exec (_expr_env, env)
                     exec (
                         'if isinstance(__result__.{0}, types.GeneratorType): '
                         '__run__, __call__, __error__ = True, __result__.{0}, {1}'.
@@ -542,6 +549,7 @@ if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, t
 
         cls.globals.update(globals())
         for p_entry in cls.plugins:
+            _pipe_idx = [str(j) for j in range(1, len([i for i in cls.plugin_pipeline.keys() if i.startswith(p_entry)]))]
             if p_entry not in cls.plugin_pipeline:
                 continue
             if p_entry not in cls.plugin_channels:
@@ -549,10 +557,10 @@ if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, t
             if not hasattr(cls.results, p_entry):
                 setattr(cls.results, p_entry, {})
 
-            def _run_pipeline(idx=0):
-                for i, p in enumerate(cls.plugin_pipeline[p_entry][idx:]):
+            def _run_pipeline(_entry, idx=0):
+                for i, p in enumerate(cls.plugin_pipeline[_entry][idx:]):
                     _p = cls._plugin_realname(p)
-                    n = cls.plugin_channels[p_entry][i]
+                    n = cls.plugin_channels[_entry][i]
                     if _p not in cls.plugin_init:
                         continue
                     if _p not in cls.plugin_call:
@@ -564,19 +572,25 @@ if not isinstance({1}, types.GeneratorType) and not isinstance(__result__.{0}, t
 
                     lang = cls.plugin_lang.get(_p, 'python')
                     if 'python' in lang:
-                        cls.run_python_plugin(p_entry, p, n, i)
+                        cls.run_python_plugin(_entry, p, n, i)
                     else:
                         pass
 
-            def _run_loop():
-                while p_entry in cls.plugin_loops and cls.plugin_loops[p_entry] is not None:
-                    _run_pipeline(idx=cls.plugin_loops[p_entry])
+            def _run_loop(_entry):
+                _run_pipeline(p_entry)
+                while _entry in cls.plugin_loops and cls.plugin_loops[_entry] is not None:
+                    _run_pipeline(idx=cls.plugin_loops[_entry])
 
-            _run_pipeline()
-            _process = multiprocessing.Process(target=lambda: cls.pool.apply_async(_run_loop()))
+            _process = multiprocessing.Process(target=lambda: cls.pool.apply_async(_run_loop(p_entry)))
             _process.daemon = True
             _process.start()
             __pids.append(_process.pid)
+            for pi_index in _pipe_idx:
+                #_run_pipeline(p_entry + pi_index)
+                _process = multiprocessing.Process(target=lambda: cls.pool.apply_async(_run_loop(p_entry + pi_index)))
+                _process.daemon = True
+                _process.start()
+                __pids.append(_process.pid)
 
         import signal
         signal.signal(signal.SIGTERM, kill_process)
@@ -850,4 +864,3 @@ class PluginLoaderV1(PluginLoader):
                     cls.set_pipeline(name, _pipelines, _channels)
 
         init_plugin_config()
-
