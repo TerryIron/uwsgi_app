@@ -579,14 +579,13 @@ os.environ['PYTHONOPTIMIZE'] = '1'
             def _run_loop(_entry):
                 _run_pipeline(p_entry)
                 while _entry in cls.plugin_loops and cls.plugin_loops[_entry] is not None:
-                    _run_pipeline(idx=cls.plugin_loops[_entry])
+                    _run_pipeline(_entry, idx=cls.plugin_loops[_entry])
 
             _process = multiprocessing.Process(target=lambda: cls.pool.apply_async(_run_loop(p_entry)))
             _process.daemon = True
             _process.start()
             __pids.append(_process.pid)
             for pi_index in _pipe_idx:
-                #_run_pipeline(p_entry + pi_index)
                 _process = multiprocessing.Process(target=lambda: cls.pool.apply_async(_run_loop(p_entry + pi_index)))
                 _process.daemon = True
                 _process.start()
