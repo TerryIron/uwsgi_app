@@ -61,6 +61,15 @@ def init_loader(c,
     _module_plugin = modprobe(__name__ + '.' + _framework + '_plugin')
     _plugin = getattr(_module_plugin, 'PluginLoaderV1')
     _routes['/_PluginLoaderV1'] = _plugin
+
+    _plugin_path = os.path.join(os.path.dirname(__file__), 'plugins')
+    for i in os.listdir(_plugin_path):
+        api_file = os.path.join(os.path.join(_plugin_path, i), 'routes.py')
+        if os.path.exists(api_file):
+            _mod = __import__('plugins.{}.routes'.format(i), globals(), locals(), ['routes'])
+            if hasattr(_mod, 'get_routes') and callable(getattr(_mod, 'get_routes')):
+                _routes.update(getattr(_mod, 'get_routes')())
+
     getattr(_module_app, _route)(**_routes)
 
     _callable = _c.get(opt_callable, default_callable)
@@ -79,9 +88,9 @@ def main(global_config, **settings):
     """
 
     confinit(**global_config)
-    _config = Config()
-    setattr(_config, 'settings', get_config(confprobe()))
-    init_models.includeme(_config)
-    application = init_loader(_config, global_config, settings)
+    conf = Config()
+    setattr(conf, 'settings', get_config(confprobe()))
+    init_models.includeme(conf)
+    application = init_loader(conf, global_config, settings)
 
     return application() if callable(application) else application
