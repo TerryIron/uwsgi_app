@@ -18,7 +18,8 @@
 #
 
 
-from sqlalchemy import engine_from_config, create_engine
+import sqlalchemy
+from sqlalchemy import create_engine, engine_from_config
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import configure_mappers
 import zope.sqlalchemy
@@ -36,6 +37,19 @@ from .meta import Base as Base
 # run configure_mappers after defining all of the models to ensure
 # all relationships can be setup
 configure_mappers()
+
+
+def _engine_from_config(configuration, prefix='sqlalchemy.', **kwargs):
+    from sqlalchemy.pool import NullPool
+    _kwargs = {}
+    _kwargs.update(configuration)
+    _kwargs['{}poolclass'.format(prefix)] = NullPool
+    _kwargs['{}pool_recycle'.format(prefix)] = 7200
+    return engine_from_config(_kwargs, prefix=prefix, **kwargs)
+
+
+sqlalchemy.engine_from_config = _engine_from_config
+
 
 __all__ = [
     'Engine', 'EngineFactory', 'Table', 'get_engine', 'get_sqlalchemy_engine',
@@ -135,7 +149,6 @@ class Engine(object):
         _instance.commit = _commit
         return _instance
 
-
     @property
     def engine(self):
         """
@@ -188,8 +201,7 @@ def _get_engine(settings, prefix='sql.'):
     if value.startswith('hbase:'):
         return get_hbase_engine(value)
     else:
-        settings['pool_recycle'] = 7200
-        _engine = engine_from_config(settings, prefix)
+        _engine = sqlalchemy.engine_from_config(settings, prefix)
         return Engine(sessionmaker(_engine), 'sqlalchemy', _engine)
 
 
