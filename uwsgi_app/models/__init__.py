@@ -403,7 +403,7 @@ def includeme(config):
     _create_tables(engine=engine, settings=settings)
     config.registry['dbsession_factory'] = session_factory
 
-    def _call(**kwargs):
+    def _call(*args, **kwargs):
         engine = _get_engine(settings=settings)
         session_factory = get_session_factory(engine=engine)
         return get_tm_session(session_factory, transaction.manager)
