@@ -291,11 +291,60 @@ class PluginLoader(object):
         cls.__plug_globals__[name] = p
 
     @classmethod
+    def install_patch(cls, plugin_home, requirement_file):
+        import commands
+        import os.path
+        _file_path = os.path.join(plugin_home, requirement_file)
+        if os.path.exists(_file_path):
+            with open(_file_path) as f:
+                data = [i for i in f.read().split('\n') if i]
+                for ld in data:
+                    if ld.startswith('+'):
+                        if len(ld.split(':')) == 2:
+                            _file_name = ld.split(':')[0][1:]
+                            _target_name = ld.split(':')[1]
+                            if not os.path.exists(_file_name) and os.path.exists(_target_name):
+                                with open(_target_name) as f:
+                                    d = f.read()
+                                    with open(_file_name, 'w') as tf:
+                                        tf.write(d)
+                        else:
+                            commands.getoutput('cd {} && touch {}'.format(plugin_home, ld[1:]))
+                    elif ld.startswith('-'):
+                        commands.getoutput('cd {} && rm -rf {}'.format(plugin_home, ld[1:]))
+                    elif ld.startswith('='):
+                        commands.getoutput('cd {} && patch -p0 < {}'.format(plugin_home, ld[1:]))
+
+    @classmethod
+    def install_lib(cls, plugin_home, requirement_file):
+        import commands
+        import os.path
+        _file_path = os.path.join(plugin_home, requirement_file)
+        if os.path.exists(_file_path):
+            with open(_file_path) as f:
+                data = [i for i in f.read().split('\n') if i]
+                if data:
+                    data = ' '.join(data)
+                    _cmd = 'sudo apt install {}'.format(data)
+                    commands.getoutput(_cmd)
+
+    @classmethod
+    def install_requirements(cls, plugin_home, requirement_file, git_host):
+        import commands
+        import os.path
+        _file_path = os.path.join(plugin_home, requirement_file)
+        if os.path.exists(_file_path):
+            _cmd = 'cd {} && virtualenv env --no-site-packages ' \
+                   '&&. env/bin/activate && pip install --global-option=build_ext ' \
+                   '--global-option="-I/usr/include/x86_64-linux-gnu" --global-option="-L/usr/lib/x86_64-linux-gnu" -r {} -i {} && cd -'
+            commands.getoutput(_cmd.format(plugin_home, requirement_file, git_host))
+
+    @classmethod
     def reload_plugin(cls, loader, plugin_name, plugin_action, plugin_version='0.1.0', **kwargs):
         import os
         import json
 
-        _globals = globals()
+        _globals = {}
         if plugin_name in cls.plugin_lang:
             _app_lang = cls.plugin_lang[plugin_name]
             _globals['sys'] = cls.get_plugin_import_path(plugin_name, _app_lang)
@@ -314,17 +363,20 @@ class PluginLoader(object):
             app_config = os.path.join(_plugin_home, 'app.json')
             if not os.path.exists(_plugin_home):
                 app_json = json.load(open(app_config))
+                app_install = app_json.get('install',
+                                           'install.txt')
+                cls.install_lib(_plugin_home, app_install)
                 app_requirements = app_json.get('imports',
                                                 'requirements.txt')
 
-                import commands
-                _cmd = 'cd {} && virtualenv env --no-site-packages ' \
-                       '&&. env/bin/activate && pip install -r {} -i {} && cd -'
-                commands.getoutput(_cmd.format(_plugin_home, app_requirements, cls.git_host))
+                cls.install_requirements(_plugin_home, app_requirements, cls.git_host)
+                app_patch = app_json.get('patch',
+                                         'patch.txt')
+                cls.install_patch(_plugin_home, app_patch)
 
             _import_names = cls.plugin_imports[plugin_name][plugin_action]
             _import_name = _import_names.split('.')[0]
-            _mod = __import__(_import_names, _globals, locals(),
+            _mod = __import__(_import_names, _globals, {},
                               _import_name)
             _callable = getattr(_mod, plugin_action)
             if callable(_callable):
@@ -378,12 +430,14 @@ class PluginLoader(object):
         _lib_path = cls.__plug_libpath__.get(name, os.path.join(_plugin_path, name))
         reload(cls.sys)
         cls.sys.path = ['', _plugin_path]
-        cls.sys.path.insert(1, '/usr/lib/python2.7')
-        cls.sys.path.insert(1, os.path.join(_lib_path, 'env/lib/python2.7/lib-dynload'))
         cls.sys.path.insert(1, os.path.join(_lib_path, 'env/lib/python2.7/site-packages'))
         cls.sys.path.insert(1, os.path.join(_lib_path, 'env/local/lib/python2.7/site-packages'))
+        cls.sys.path.insert(1, '/usr/lib/python2.7/plat-x86_64-linux-gnu')
+        cls.sys.path.insert(1, '/usr/lib/python2.7')
+        cls.sys.path.insert(1, os.path.join(_lib_path, 'env/lib/python2.7/lib-dynload'))
+        cls.sys.path.insert(1, os.path.join(_lib_path, 'env/lib/python2.7/lib-old'))
+        cls.sys.path.insert(1, os.path.join(_lib_path, 'env/lib/python2.7/plat-x86_64-linux-gnu'))
         cls.sys.path.insert(1, os.path.join(_lib_path, 'env/lib/python2.7'))
-        cls.sys.path.insert(1, _lib_path)
         return cls.sys
 
     @classmethod
@@ -672,13 +726,16 @@ class PluginLoaderV1(PluginLoader):
                     commands.getoutput(_cmd.format(_plugin_path, plugin_path))
 
                     app_json = json.load(open(app_config))
+                    app_install = app_json.get('install',
+                                               'install.txt')
+                    cls.install_lib(_plugin_home, app_install)
                     app_requirements = app_json.get('imports',
                                                     'requirements.txt')
 
-                    _cmd = 'cd {} && virtualenv env --no-site-packages ' \
-                           '&&. env/bin/activate && pip install -r {} -i {} && cd -'
-                    commands.getoutput(
-                        _cmd.format(_plugin_home, app_requirements, cls.git_host))
+                    cls.install_requirements(_plugin_home, app_requirements, cls.git_host)
+                    app_patch = app_json.get('patch',
+                                             'patch.txt')
+                    cls.install_patch(_plugin_home, app_patch)
                 else:
                     cls._LOGGER.info('Plugin:{} start'.format(_plugin_home))
                     app_json = json.load(open(app_config))
@@ -697,9 +754,9 @@ class PluginLoaderV1(PluginLoader):
                 cls._LOGGER.info('App:{} version:{}'.format(
                     app_name, app_version))
                 app_actions = []
-                _globals = globals()
-                _globals['sys'] = cls.get_plugin_import_path(
-                    app_name, app_lang)
+                _globals = {}
+                _globals['sys'] = cls.get_plugin_import_path(app_name, app_lang)
+                _mods = {}
                 for k, v in app_json.get('actions', {}).items():
                     _callable_name = v.split('.')[-1]
                     _callable_mod = v.split('.')[-2]
@@ -707,8 +764,12 @@ class PluginLoaderV1(PluginLoader):
                     try:
                         cls._LOGGER.info('App:{} import action:{} {}'.format(
                             app_name, k, v))
-                        _mod = __import__(_callable_mods, _globals, locals(),
-                                          _callable_mod)
+                        if app_name not in _mods:
+                            _mod = __import__(_callable_mods, _globals, {},
+                                              _callable_mod)
+                            _mods[app_name] = _mod
+                        else:
+                            _mod = _mods[app_name]
                         _callable = getattr(_mod, _callable_name)
                         if app_name not in cls.plugin_imports:
                             cls.plugin_imports[app_name] = {}
